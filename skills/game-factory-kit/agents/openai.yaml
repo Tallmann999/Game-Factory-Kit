@@ -1,0 +1,8 @@
+interface:
+  display_name: "Game Factory Kit"
+  short_description: "Проводи игру от идеи до проверяемого билда"
+  brand_color: "#7C3AED"
+  default_prompt: "Use $game-factory-kit to turn my game idea into a scoped, testable playable milestone."
+
+policy:
+  allow_implicit_invocation: true
