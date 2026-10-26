@@ -20,7 +20,10 @@ class KitTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="gamekit-test-")
         self.addCleanup(self.temporary.cleanup)
-        self.base = Path(self.temporary.name)
+        # macOS temp paths commonly start with the system /var -> /private/var
+        # alias. Use its canonical directory for fixtures; explicit symlinks
+        # created by the rejection tests must still be refused by the CLI.
+        self.base = Path(self.temporary.name).resolve()
         self.root = self.base / "source"
         self.root.mkdir()
         self.dest = self.base / "project" / ".agents" / "skills"
