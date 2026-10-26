@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-mvp"
+  short_description: "Сократить концепт игры до проверяемого MVP и Feature Index с"
+  default_prompt: "Используй $game-mvp для текущей игровой задачи."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-web-builder"
+  short_description: "Реализовать короткий игровой Web/HTML MVP в 2D или 3D, испол"
+  default_prompt: "Используй $game-web-builder для текущей игровой задачи."

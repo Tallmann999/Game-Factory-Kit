@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-mobile"
+  short_description: "Адаптировать и проверить игровой MVP для мобильного Web, And"
+  default_prompt: "Используй $game-mobile для текущей игровой задачи."

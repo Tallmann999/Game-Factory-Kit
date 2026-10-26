@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-asset-pipeline"
+  short_description: "Подготовить игровые ассеты от исходников до проверенного имп"
+  default_prompt: "Используй $game-asset-pipeline для текущей игровой задачи."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-roblox"
+  short_description: "Реализовать и проверить короткий Roblox MVP в Luau, подготов"
+  default_prompt: "Используй $game-roblox для текущей игровой задачи."

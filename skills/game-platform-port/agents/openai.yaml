@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-platform-port"
+  short_description: "Спланировать и выполнить перенос проверенной игровой механик"
+  default_prompt: "Используй $game-platform-port для текущей игровой задачи."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-art-director"
+  short_description: "Задать визуальное направление игровой идеи и подготовить сог"
+  default_prompt: "Используй $game-art-director для текущей игровой задачи."

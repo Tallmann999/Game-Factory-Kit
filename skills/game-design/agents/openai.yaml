@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-design"
+  short_description: "Оформить игровую идею в короткий концепт или уточнить механи"
+  default_prompt: "Используй $game-design для текущей игровой задачи."

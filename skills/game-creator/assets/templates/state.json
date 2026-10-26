@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "project_name": "{{PROJECT_NAME}}",
+  "phase": "idea",
+  "scope": "unconfirmed",
+  "prototype_platform": null,
+  "dimension": null,
+  "target_device": null,
+  "production_engine": null,
+  "distribution_channel": null,
+  "business_model": null,
+  "active_feature_id": null,
+  "decisions": [],
+  "assumptions": [],
+  "open_questions": [],
+  "research_status": "pending",
+  "last_verified_test": null,
+  "human_test": "not_run",
+  "tool_status": {},
+  "next_action": "Ask for the idea, unless already supplied",
+  "updated_at": null
+}

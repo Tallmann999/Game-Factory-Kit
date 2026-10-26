@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-market-research"
+  short_description: "Исследовать игровую идею, нишу, аудиторию и реальные референ"
+  default_prompt: "Используй $game-market-research для текущей игровой задачи."

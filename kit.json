@@ -1,0 +1,440 @@
+{
+  "schema_version": 1,
+  "name": "game-studio-kit",
+  "version": "0.1.0",
+  "reviewed_at": "2026-10-26",
+  "skills": [
+    {
+      "name": "blender-addon-development",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-animation",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-asset-qa",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-character-rigging",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-core",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-export-pipelines",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-facial-shapekeys",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-game-optimization",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-geometry-nodes",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-hardsurface-modeling",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-lighting-lookdev",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-pbr-materials",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-pipeline-automation",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-rendering",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-retopology-uv",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-scene-setup",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-sculpting",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-simulation",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-texture-baking",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-time-of-day",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-weather-fx",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "blender-workflow-recipes",
+      "origin": "https://github.com/EL4CTEO/blender-skills",
+      "license": "MIT",
+      "source_ref": "71d031dab8bc6729504d11a78cbe91945401045f"
+    },
+    {
+      "name": "game-art-director",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-asset-pipeline",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-audio",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-creator",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-design",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-market-research",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-marketing",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-mobile",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-mvp",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-platform-port",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-qa",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-roblox",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-ui-design",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "game-web-builder",
+      "origin": "Original Game Studio Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.1.0"
+    },
+    {
+      "name": "phaser-animations",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "phaser-data-manager",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "phaser-input-keyboard-mouse-touch",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "phaser-physics-arcade",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "phaser-physics-matter",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "phaser-scale-and-responsive",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "phaser-scenes",
+      "origin": "https://github.com/phaserjs/phaser",
+      "license": "MIT",
+      "source_ref": "02d8931b626d9764c133cbb3fbf99966c03c757c"
+    },
+    {
+      "name": "playwright",
+      "origin": "https://github.com/openai/skills/tree/main/skills/.curated/playwright",
+      "license": "Apache-2.0",
+      "source_ref": "local licensed snapshot, adapted; upstream commit not recorded"
+    },
+    {
+      "name": "unity-mcp-orchestrator",
+      "origin": "https://github.com/CoplayDev/unity-mcp",
+      "license": "MIT",
+      "source_ref": "81542a7e86292b5c4c21b1782c5af23b567f45ce"
+    }
+  ],
+  "profiles": {
+    "core": [
+      "game-creator",
+      "game-market-research",
+      "game-design",
+      "game-mvp",
+      "game-qa"
+    ],
+    "web": [
+      "game-creator",
+      "game-market-research",
+      "game-design",
+      "game-mvp",
+      "game-qa",
+      "game-web-builder",
+      "game-art-director",
+      "game-ui-design",
+      "game-audio",
+      "game-asset-pipeline",
+      "game-marketing",
+      "phaser-animations",
+      "phaser-data-manager",
+      "phaser-input-keyboard-mouse-touch",
+      "phaser-physics-arcade",
+      "phaser-physics-matter",
+      "phaser-scale-and-responsive",
+      "phaser-scenes",
+      "playwright"
+    ],
+    "art": [
+      "game-creator",
+      "game-market-research",
+      "game-design",
+      "game-mvp",
+      "game-qa",
+      "game-art-director",
+      "game-ui-design",
+      "game-audio",
+      "game-asset-pipeline",
+      "blender-addon-development",
+      "blender-animation",
+      "blender-asset-qa",
+      "blender-character-rigging",
+      "blender-core",
+      "blender-export-pipelines",
+      "blender-facial-shapekeys",
+      "blender-game-optimization",
+      "blender-geometry-nodes",
+      "blender-hardsurface-modeling",
+      "blender-lighting-lookdev",
+      "blender-pbr-materials",
+      "blender-pipeline-automation",
+      "blender-rendering",
+      "blender-retopology-uv",
+      "blender-scene-setup",
+      "blender-sculpting",
+      "blender-simulation",
+      "blender-texture-baking",
+      "blender-time-of-day",
+      "blender-weather-fx",
+      "blender-workflow-recipes"
+    ],
+    "unity": [
+      "game-creator",
+      "game-market-research",
+      "game-design",
+      "game-mvp",
+      "game-qa",
+      "game-art-director",
+      "game-ui-design",
+      "game-audio",
+      "game-asset-pipeline",
+      "game-marketing",
+      "game-platform-port",
+      "game-mobile",
+      "unity-mcp-orchestrator"
+    ],
+    "roblox": [
+      "game-creator",
+      "game-market-research",
+      "game-design",
+      "game-mvp",
+      "game-qa",
+      "game-roblox",
+      "game-art-director",
+      "game-ui-design",
+      "game-audio",
+      "game-asset-pipeline",
+      "game-marketing",
+      "game-platform-port"
+    ],
+    "mobile": [
+      "game-creator",
+      "game-market-research",
+      "game-design",
+      "game-mvp",
+      "game-qa",
+      "game-web-builder",
+      "game-art-director",
+      "game-ui-design",
+      "game-audio",
+      "game-asset-pipeline",
+      "game-marketing",
+      "phaser-animations",
+      "phaser-data-manager",
+      "phaser-input-keyboard-mouse-touch",
+      "phaser-physics-arcade",
+      "phaser-physics-matter",
+      "phaser-scale-and-responsive",
+      "phaser-scenes",
+      "playwright",
+      "game-mobile",
+      "game-platform-port"
+    ],
+    "full": [
+      "blender-addon-development",
+      "blender-animation",
+      "blender-asset-qa",
+      "blender-character-rigging",
+      "blender-core",
+      "blender-export-pipelines",
+      "blender-facial-shapekeys",
+      "blender-game-optimization",
+      "blender-geometry-nodes",
+      "blender-hardsurface-modeling",
+      "blender-lighting-lookdev",
+      "blender-pbr-materials",
+      "blender-pipeline-automation",
+      "blender-rendering",
+      "blender-retopology-uv",
+      "blender-scene-setup",
+      "blender-sculpting",
+      "blender-simulation",
+      "blender-texture-baking",
+      "blender-time-of-day",
+      "blender-weather-fx",
+      "blender-workflow-recipes",
+      "game-art-director",
+      "game-asset-pipeline",
+      "game-audio",
+      "game-creator",
+      "game-design",
+      "game-market-research",
+      "game-marketing",
+      "game-mobile",
+      "game-mvp",
+      "game-platform-port",
+      "game-qa",
+      "game-roblox",
+      "game-ui-design",
+      "game-web-builder",
+      "phaser-animations",
+      "phaser-data-manager",
+      "phaser-input-keyboard-mouse-touch",
+      "phaser-physics-arcade",
+      "phaser-physics-matter",
+      "phaser-scale-and-responsive",
+      "phaser-scenes",
+      "playwright",
+      "unity-mcp-orchestrator"
+    ]
+  }
+}

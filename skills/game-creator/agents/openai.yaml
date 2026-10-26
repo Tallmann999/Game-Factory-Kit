@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-creator"
+  short_description: "Создать игру от идеи до короткого проверяемого MVP"
+  default_prompt: "Используй $game-creator для текущей игровой задачи."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-marketing"
+  short_description: "Подготовить позиционирование, аудиторию и небольшой маркетин"
+  default_prompt: "Используй $game-marketing для текущей игровой задачи."

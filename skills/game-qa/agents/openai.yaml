@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-qa"
+  short_description: "Проверить игровой MVP в runtime и спланировать тест гипотезы"
+  default_prompt: "Используй $game-qa для текущей игровой задачи."

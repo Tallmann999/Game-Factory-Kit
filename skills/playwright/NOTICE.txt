@@ -1,0 +1,18 @@
+This skill includes material derived from the Microsoft playwright-cli repository.
+
+Source:
+- Repository: microsoft/playwright-cli
+- Path: skills/playwright-cli/SKILL.md
+
+Copyright (c) Microsoft Corporation.
+
+Licensed under the Apache License, Version 2.0.
+See LICENSE.txt in this directory.
+
+Modifications:
+- Adapted for the Codex skill collection.
+- Added a wrapper script and local reference guides.
+- Game Studio Kit 0.1.0: resolve scripts relative to the installed SKILL.md;
+  prefer available browser tooling and support Windows without required bash.
+- Game Studio Kit: bash wrapper examples explicitly invoke bash so ZIP file
+  permissions do not prevent use; missing npx no longer forces global install.

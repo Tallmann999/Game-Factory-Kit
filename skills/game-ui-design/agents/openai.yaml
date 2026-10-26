@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-ui-design"
+  short_description: "Проектировать и реализовывать игровые меню, HUD, onboarding "
+  default_prompt: "Используй $game-ui-design для текущей игровой задачи."

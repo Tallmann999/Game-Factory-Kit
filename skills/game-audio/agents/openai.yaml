@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-audio"
+  short_description: "Спроектировать и подключить звук/музыку игрового MVP: событи"
+  default_prompt: "Используй $game-audio для текущей игровой задачи."
