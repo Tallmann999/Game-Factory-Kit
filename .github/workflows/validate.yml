@@ -1,0 +1,31 @@
+name: Проверка набора
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.10"
+          - os: windows-latest
+            python: "3.14"
+          - os: macos-latest
+            python: "3.12"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Проверить 45 скиллов и профили
+        run: python scripts/kit.py validate
+      - name: Проверить установщик
+        run: python -m unittest discover -s tests -v

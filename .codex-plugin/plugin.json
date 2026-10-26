@@ -1,6 +1,6 @@
 {
-  "name": "game-studio-kit",
-  "version": "0.1.0",
-  "description": "Idea, research, concept, scoped game MVP, playtest and platform growth with optional production skills.",
+  "name": "game-factory-kit",
+  "version": "0.2.0",
+  "description": "От идеи и исследования до короткого игрового MVP, плейтеста и развития на разных платформах.",
   "skills": "./skills/"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable Game Studio Kit installer. Python 3.10+, standard library only."""
+"""Установщик Game Factory Kit. Python 3.10+, без внешних зависимостей."""
 from __future__ import annotations
 
 import argparse
@@ -27,7 +27,7 @@ EXCLUDED_DIRS = {
 }
 ROOT_FILES = {
     "kit.json", "README.md", "LICENSE", "LICENSE.md", "LICENSE.txt",
-    "THIRD_PARTY_NOTICES.md", "NOTICE", "NOTICE.md", ".gitignore", ".gitattributes", "AGENTS.md",
+    "THIRD_PARTY_NOTICES.md", "NOTICE", "NOTICE.md", ".gitignore", ".gitattributes", "AGENTS.md", "CHANGELOG.md",
 }
 PACKAGE_DIRS = {"skills", "scripts", "tests", "docs", "catalog", "licenses", ".codex-plugin"}
 TEMPLATE_NAMES = (
