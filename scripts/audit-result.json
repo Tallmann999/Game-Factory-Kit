@@ -1,0 +1,14 @@
+{
+  "type":"object","additionalProperties":false,
+  "properties":{
+    "summary":{"type":"string"},
+    "stages":{"type":"array","items":{
+      "type":"object","additionalProperties":false,
+      "properties":{
+        "id":{"type":"string"},"percent":{"type":"integer","minimum":0,"maximum":100},
+        "remaining":{"type":"string"},
+        "evidence":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"path":{"type":"string"},"fact":{"type":"string"}},"required":["path","fact"]}}
+      },"required":["id","percent","remaining","evidence"]
+    }}
+  },"required":["summary","stages"]
+}

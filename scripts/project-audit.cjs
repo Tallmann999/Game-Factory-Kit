@@ -6,7 +6,7 @@ const {boardDirectory,targets} = require("./project-git.cjs");
 const {platformLabel} = require("../docs/pipeline/model.js");
 const kit=path.resolve(__dirname,"..");
 const omitted=new Set(["node_modules","vendor","Library","Temp","obj","bin","Packages","Logs","logs","coverage","__pycache__"]);
-const docTypes=/\.(md|txt|csv|json|png|webp|jpe?g)$/i;
+const docTypes=/\.(md|txt|csv|json|png|webp|jpe?g|xml|cs|gd|ts|js|lua|luau|unity|tscn|godot|html|asset|prefab|csproj|ya?ml|uproject)$/i;
 const names={
   idea:/^(idea|pitch|идея)\.md$/i, research:/^(research|market-research|исследование)\.md$/i,
   concept:/^(concept|game[_-]concept|project-concept|gdd|game-design|концепт)\.md$/i, scope:/^(feature-index|feature_index|features)\.md$/i,
@@ -15,7 +15,7 @@ const names={
   finish:/^(release|release-notes|handover)\.md$/i
 };
 function docPath(root,relative) {
-  if(!docTypes.test(relative) || relative.split("/").some(part=>part.startsWith("."))) throw Error("Укажите документ внутри папки игры.");
+  if(typeof relative!=="string" || !docTypes.test(relative) || (relative!==".game-factory/pipeline.json" && relative.split("/").some(part=>part.startsWith(".")))) throw Error("Укажите доступный документ внутри папки игры: "+String(relative).slice(0,200));
   const file=safeFile(root,relative);
   if(file===kit || file.startsWith(kit+path.sep) || !fs.statSync(file).isFile()) throw Error("Документ недоступен.");
   return file;
@@ -45,10 +45,35 @@ function filled(text,template) {
   const lines=new Set(template.split(/\r?\n/).map(s=>s.trim()));
   return text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s && !s.startsWith("#") && !lines.has(s) && !/^[-\s|:]+$/.test(s)).join("\n");
 }
+const reviewPath=".game-factory/project-audit.json";
+function saveReview(root,plan,result) {
+  if(typeof result?.summary!=="string" || !Array.isArray(result.stages) || result.stages.length!==plan.nodes.length)throw Error("Нужна оценка каждого этапа проекта.");
+  const ids=new Set(plan.nodes.map(n=>n.id));
+  const stages=result.stages.map(s=>{
+    if(!ids.delete(s.id) || !Number.isInteger(s.percent) || s.percent<0 || s.percent>100 || typeof s.remaining!=="string" ||
+      !Array.isArray(s.evidence) || s.evidence.length>50 || (s.percent>0 && !s.evidence.length))throw Error("Оценка этапа требует подтверждения: "+s.id);
+    const evidence=s.evidence.map(({path:name,fact})=>{
+      if(typeof fact!=="string" || !fact.trim() || fact.length>3000)throw Error("Укажите факт из документа.");
+      const stat=fs.statSync(docPath(root,name));
+      return {path:name,fact,size:stat.size,mtime:stat.mtimeMs};
+    });
+    return {id:s.id,percent:s.percent,remaining:s.remaining.slice(0,3000),evidence};
+  });
+  const file=safeFile(root,reviewPath),tmp=file+"."+require("node:crypto").randomUUID()+".tmp";
+  try{fs.writeFileSync(tmp,JSON.stringify({date:new Date().toISOString(),summary:result.summary.slice(0,3000),stages},null,2));fs.renameSync(tmp,file);}
+  finally{fs.rmSync(tmp,{force:true});}
+}
 function audit(root,plan) {
   const {files,truncated}=inventory(root), stages={},warnings=[];
   if(truncated) warnings.push("Осмотрены первые 40 000 записей. Остальные документы можно привязать в карточках.");
   const choices=targets(root);
+  let reviews=[],lastAudit=null;
+  const review=safeFile(root,reviewPath);
+  if(fs.existsSync(review))try{
+    const saved=JSON.parse(fs.readFileSync(review,"utf8"));
+    if(!Array.isArray(saved.stages))throw Error("Отсутствуют этапы");
+    reviews=saved.stages;lastAudit={date:saved.date,summary:saved.summary};
+  }catch{warnings.push("Не удалось прочитать выводы аудита проекта.");}
   const filesByStage={};
   const contents={};
   const meaningful={};
@@ -111,15 +136,24 @@ function audit(root,plan) {
     // With an index the build follows the actual features, including newly added ones.
     const referenced=(n.documents||[]).every(name=>filesByStage[n.id].includes(name));
     const recorded=n.progress!==undefined && referenced;
-    const percent=n.id==="build" && features.length?observed:recorded?manual:Math.max(observed,referenced?manual:0);
+    const finding=reviews.find(s=>s.id===n.id);
+    const valid=finding?.evidence.every(e=>{
+      try{const stat=fs.statSync(docPath(root,e.path));return stat.size===e.size && stat.mtimeMs===e.mtime;}catch{return false;}
+    });
+    const evidence=valid?finding.evidence:[];
+    const fixed=["platform","work-mode"].includes(n.id) || (n.id==="build" && features.length);
+    const base=n.id==="build" && features.length?observed:recorded?manual:Math.max(observed,referenced?manual:0);
+    const percent=valid && !fixed?Math.max(recorded || n.status==="done"?manual:0,finding.percent):base;
     const status=percent===100?"done":n.status==="waiting"?"waiting":percent>0 || n.status==="active" ||
       (n.id==="build" && features.some(f=>["working","review","building","in_progress","implemented","push_pending"].includes(f.state)))?"active":"planned";
-    stages[n.id]={percent,status,documents:filesByStage[n.id],remaining:percent===100?[]:
+    stages[n.id]={percent,status,evidence,documents:[...new Set([...filesByStage[n.id],...evidence.map(e=>e.path)])],remaining:percent===100?[]:
       (recorded && n.remaining && n.id!=="build"?[n.remaining]:[...(n.remaining?[n.remaining]:[]),...items.filter(([ok])=>!ok).map(([,todo])=>todo)])};
+    if(valid && !fixed && percent<100 && finding.remaining)stages[n.id].remaining=[...new Set([n.remaining,finding.remaining].filter(Boolean))];
+    if(finding && !valid)stages[n.id].remaining.push("Доказательства изменились. Обновите аудит проекта.");
   }
   const notes=files.filter(f=>/(^|\/)(?:\d{4}-\d{2}-\d{2}-)?handoff\.md$/i.test(f)).sort().reverse();
   const checkpoint=notes[0] && readText(docPath(root,notes[0])).match(/^(?:Дальше|Следующий шаг|Next step):\s*(.+)$/im)?.[1];
   const nextAction=checkpoint || (typeof state.next_action==="string" && state.updated_at?state.next_action:"");
-  return {stages,features,doneFeatures:count,choices,warnings,executionNote,nextAction,checkpoint:notes[0]||""};
+  return {stages,features,doneFeatures:count,choices,warnings,executionNote,nextAction,lastAudit,checkpoint:notes[0]||""};
 }
-module.exports={audit,docPath};
+module.exports={audit,docPath,saveReview};

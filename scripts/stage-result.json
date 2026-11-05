@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {"type":"string","enum":["done","partial","waiting"]},
+    "progress": {"type":"integer","minimum":0,"maximum":100},
+    "summary": {"type":"string"},
+    "documents": {"type":"array","items":{"type":"string"}},
+    "remaining": {"type":"string"}
+  },
+  "required": ["status","progress","summary","documents","remaining"]
+}

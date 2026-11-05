@@ -331,7 +331,7 @@ $("viewport").onkeydown=evt=>{
     evt.preventDefault(); plan.edges=plan.edges.filter(e=>e.id!==selectedWire); selectedWire=null; changed("Связь удалена.");
   }
 };
-form.onsubmit=evt=>{
+form.onsubmit=async evt=>{
   evt.preventDefault();const original=pendingNew||nodeById(editing), n={...original};
   for(const field of ["title","agent","description","status","result","policy","report"]) n[field]=form.elements[field].value.trim();
   if (!plan.platform && (n.id==="platform" || routedStages.includes(n.id)) && ["active","done"].includes(n.status)) {
@@ -353,6 +353,7 @@ form.onsubmit=evt=>{
   n.remaining=form.elements.remaining.value.trim();
   const next={...plan,nodes};
   try {checkDiagram(next);ordered(next);} catch(error) {$("detailError").textContent=error.message;return;}
+  if(evt.submitter?.id==="runStage"){await launchStep(next,n.id);return;}
   plan=next;selected=n.id;$("detail").close();changed("Этап сохранён.");
 };
 $("remove").onclick=()=>{

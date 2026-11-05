@@ -43,3 +43,55 @@ test("project edits survive restart; stale writers and foreign paths cannot repl
   assert.equal((await fetch(url+"/api/project",{method:"PUT",headers:{"Content-Type":"application/json",Origin:"https://other.invalid"},body:"{}"})).status,403);
   assert.match(await (await fetch(url+"/api/handoff")).text(),/Продолжение работы/);
 });
+
+test("launch saves only the requested step, deduplicates clicks and publishes a scoped result",async t=>{
+  const root=fixture(t),data=read(root);
+  const node=data.plan.nodes.find(n=>n.id==="research");
+  node.remaining="Сравнить две игры";
+  let starts=0;
+  const server=serve(root,{launch:()=>({pid:process.pid,begin(){starts++;}})});
+  await once(server,"listening");t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const url="http://127.0.0.1:"+server.address().port;
+  const request={...data,stageId:node.id,requestId:require("node:crypto").randomUUID()};
+  const post=(body,origin=url)=>fetch(url+"/api/stage-run",{method:"POST",headers:{Origin:origin,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  assert.equal((await post(request,"https://foreign.invalid")).status,403);
+  assert.equal((await post(request)).status,409);
+  fs.writeFileSync(path.join(root,"idea.md"),"Идея текущей игры.");
+  assert.equal((await post(request)).status,202);assert.equal((await post(request)).status,202);
+  assert.equal(starts,1);assert.equal(snapshot(root).stages.research.status,"active");
+  const thread=require("node:crypto").randomUUID();let opened;
+  const {perform}=require("../scripts/stage-run.cjs");
+  await perform(root,node.id,request.requestId,async(dir,job,started)=>{
+    assert.equal(dir,root);assert.match(job.prompt,/Сравнить две игры/);assert.match(job.prompt,/idea\.md/);
+    started(thread);fs.writeFileSync(path.join(root,"research.md"),"Факты и выводы.");
+    return {status:"partial",progress:60,summary:"Источники собраны.",remaining:"Проверить гипотезу",documents:["research.md"]};
+  },id=>{opened=id;});
+  assert.equal(opened,thread);const after=snapshot(root);assert.equal(after.stageRuns.research.threadId,thread);
+  assert.equal(after.stages.research.percent,60);assert.equal(after.stages.concept.status,"planned");
+  assert.equal(after.plan.nodes.find(n=>n.id===node.id).remaining,"Проверить гипотезу");
+});
+test("audit can credit earlier evidence in a differently named file without marking a saved task as progress",async t=>{
+  const root=fixture(t),data=read(root),id=require("node:crypto").randomUUID();
+  data.plan.nodes.find(n=>n.id==="research").remaining="Сравнить аналоги";
+  fs.writeFileSync(path.join(root,"design-notes.md"),"Гипотеза: не менее половины игроков возвращаются в раунд.");
+  const runs=require("../scripts/stage-run.cjs");
+  save(root,data.revision,data.plan);
+  assert.equal(snapshot(root).stages.research.percent,0);
+  const current=read(root);
+  runs.start(root,{...current,stageId:"@audit",requestId:id},()=>({pid:process.pid,begin(){}}));
+  const stages=current.plan.nodes.map(n=>({id:n.id,percent:n.id==="research"?33:0,remaining:"Сравнить аналоги и указать источники.",
+    evidence:n.id==="research"?[{path:"design-notes.md",fact:"Указан порог повторного раунда."}]:[]}));
+  const choice=stages.find(s=>s.id==="work-mode");
+  choice.evidence=[{path:".game-factory/private.json",fact:"Режим ещё не выбран."}];
+  const report={summary:"Этапы проверены.",stages};
+  await runs.perform(root,"@audit",id,async()=>report);
+  assert.equal(snapshot(root).stageRuns["@audit"].status,"failed");
+  choice.evidence[0].path=".game-factory/pipeline.json";
+  runs.recoverAudit(root,id,report);
+  assert.equal(snapshot(root).stageRuns["@audit"].status,"done");
+  assert.throws(()=>runs.recoverAudit(root,id,report),/неудачного/);
+  let result=snapshot(root);assert.equal(result.stages.research.percent,33);
+  assert.equal(result.stages.research.evidence[0].path,"design-notes.md");
+  assert.equal(read(root).plan.nodes.find(n=>n.id==="research").remaining,"Сравнить аналоги");
+  fs.unlinkSync(path.join(root,"design-notes.md"));result=snapshot(root);assert.equal(result.stages.research.percent,0);
+});

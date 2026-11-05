@@ -26,7 +26,7 @@
 
     <div class="heading"><div><div class="eyebrow">Рабочая схема</div><h1>От идеи до игры</h1></div><div class="release" title="Среднее выполнение этапов схемы. Для сборки учитываются фичи в объёме MVP."><div>Готовность к релизу <strong id="releaseValue">0%</strong></div><progress id="releaseBar" max="100" value="0" aria-label="Готовность к релизу"></progress><small id="featureCount"></small></div></div>
     <p id="projectNext" hidden></p>
-    <div class="project-tools"><button id="projectButton">Подключить игру</button><button id="gitButton">Ветка для фич</button><button id="platformButton">Выбрать платформу</button><button id="modeButton" hidden>Выбрать режим работы</button><button id="continueChat" hidden>В новый чат ↗</button></div>
+    <div class="project-tools"><button id="projectButton">Подключить игру</button><button id="auditButton" hidden>Аудит проекта</button><button id="gitButton">Ветка для фич</button><button id="platformButton">Выбрать платформу</button><button id="modeButton" hidden>Выбрать режим работы</button><button id="continueChat" hidden>В новый чат ↗</button></div>
     <div class="bar"><div class="tabs"><button id="mapTab" aria-pressed="true">Схема</button><button id="skillsTab" aria-pressed="false">Скиллы по этапам</button><button id="tasksTab" aria-pressed="false">Задания агентам</button></div><button class="green" id="brief">Задание для Codex ↗</button></div>
     <section id="tour" hidden aria-labelledby="tourTitle">
       <div class="tour-meta"><span id="tourStep"></span><button id="tourSkip">Пропустить</button></div>
@@ -66,9 +66,11 @@
   <details class="stage-evidence" id="featureDetails" hidden><summary id="featureSummary">Фичи MVP</summary><ul id="featureRows"></ul></details>
   <section class="stage-evidence"><h3>Что осталось сделать</h3><ul id="remainingList"></ul>
   <label>Следующий шаг<textarea name="remaining" rows="2" maxlength="3000"></textarea></label></section>
+  <div id="stageRunInfo" class="run-info" role="status"></div>
   <p class="error" id="detailError" role="alert"></p>
-  <div class="actions"><button type="button" class="danger" id="remove">Удалить этап</button><button class="green" type="submit">Сохранить</button></div>
+  <div class="actions"><button type="button" class="danger" id="remove">Удалить этап</button><button type="submit">Сохранить</button><button id="runStage" class="green" type="submit" hidden>Запустить в новом чате ↗</button></div>
 </form></dialog>
+<dialog id="auditDialog"><div class="dialog-head"><h2>Аудит проекта</h2><button class="close" aria-label="Закрыть">×</button></div><p>Codex проверит документы, сцены и отчёты этой игры. В карточках появятся найденные подтверждения и оставшиеся шаги.</p><div class="run-info" id="auditRunInfo" role="status"></div><p class="error" id="auditError" role="alert"></p><div class="actions"><button class="green" id="runAudit">Начать аудит в новом чате ↗</button></div></dialog>
 <dialog id="projectHelp"><div class="dialog-head"><h2>Подключить игру</h2><button type="button" class="close" aria-label="Закрыть">×</button></div><p>В чате проекта скажите «Покажи конструктор». Для запуска вручную откройте терминал в папке набора и укажите папку своей игры.</p><pre>node scripts/project.cjs "путь/к/игре"</pre><p>Откройте адрес из терминала. Конструктор прочитает документы этой игры и сохранит схему в её папке.</p></dialog>
 <dialog id="gitDialog"><form id="gitForm"><div class="dialog-head"><h2>В какую ветку отправлять фичи?</h2><button type="button" class="close" aria-label="Закрыть">×</button></div><p>После приёмки каждой фичи Робокоп обновляет Feature Index, создаёт один коммит и делает push.</p><div class="pair"><label>Ветка<input name="branch" list="gitBranches" required maxlength="255"></label><label>Remote<input name="remote" list="gitRemotes" required maxlength="255"></label></div><datalist id="gitBranches"></datalist><datalist id="gitRemotes"></datalist><p class="error" id="gitError" role="alert"></p><div class="actions"><button class="green">Сохранить назначение</button></div></form></dialog>
 <dialog id="platformDialog" aria-labelledby="platformTitle"><form id="platformForm">

@@ -22,7 +22,7 @@ async function refreshProject(force=false) {
     const data=await projectApi();
     if(start!==editSequence || writeCount || gesture || (!force && document.querySelector("dialog[open]")))return;
     const firstLoad=!projectData;
-    const changedData=!projectData || projectRevision!==data.revision || JSON.stringify(data.stages)!==JSON.stringify(projectData.stages) || JSON.stringify(data.features)!==JSON.stringify(projectData.features) || data.nextAction!==projectData.nextAction;
+    const changedData=!projectData || projectRevision!==data.revision || JSON.stringify(data.stages)!==JSON.stringify(projectData.stages) || JSON.stringify(data.features)!==JSON.stringify(projectData.features) || data.nextAction!==projectData.nextAction || JSON.stringify(data.stageRuns)!==JSON.stringify(projectData.stageRuns);
     projectData=data;projectRevision=data.revision;
     if(changedData || force){plan=addModeGate(data.plan);render();}
     $("persist").textContent="Сохранено в папке игры";
@@ -33,6 +33,8 @@ async function refreshProject(force=false) {
       const current=ordered(plan).find(n=>stageState(n).status==="active");
       if(current)centerNode(current);
       window.dispatchEvent(new Event("gfk-project-ready"));
+      const requested=nodeById(new URLSearchParams(location.search).get("stage"));
+      if(requested){centerNode(requested);openEditor(requested);}
     }
   } catch(e){$("persist").textContent="Не удалось прочитать проект";notice(e.message);}
 }
@@ -60,6 +62,8 @@ function releaseHeader() {
   }
   if(projectData){document.querySelector("h1").textContent=projectData.project;$("projectButton").textContent="Обновить анализ";$("continueChat").hidden=false;}
 }
+const formDraft=()=>new URLSearchParams(new FormData(form)).toString();
+let savedStageDraft="";
 function stageDetails(n) {
   const info=stageState(n), closed=blockers(n.id);
   form.elements.progress.value=info.percent;form.elements.status.value=info.status;
@@ -68,7 +72,9 @@ function stageDetails(n) {
   $("documentList").replaceChildren(...(info.documents.length?info.documents.map(name=>{
     const li=el("li");if(connectedProject && projectData?.stages[n.id]?.documents.includes(name)) {
       const a=el("a",name);a.href="/api/document?path="+encodeURIComponent(name);a.target="_blank";a.rel="noopener";li.append(a);
-    }else li.textContent=name;return li;
+    }else li.textContent=name;
+    for(const proof of info.evidence||[])if(proof.path===name)li.append(el("p",proof.fact));
+    return li;
   }):[el("li","Пока нет документов.")]));
   const features=n.id==="build" && projectData?.features || [];
   $("featureDetails").hidden=!features.length;$("featureDetails").open=false;
@@ -77,8 +83,74 @@ function stageDetails(n) {
     proposed:"предложена",implemented:"реализована",blocked:"заблокирована",review:"на ревью",question:"нужен ответ",push_pending:"ожидает push"};
   $("featureRows").replaceChildren(...features.map(f=>el("li",f.id+" · "+f.title+" — "+(f.done?"принята":stateNames[f.state]||f.state))));
   $("remainingList").replaceChildren(...(info.remaining.length?info.remaining:["Все критерии этапа выполнены."]).map(item=>el("li",item)));
+  displayRun(n.id,projectData?.stageRuns?.[n.id]);
+  savedStageDraft=formDraft();
+}
+let submitting=false, launchIntent=null;
+function displayRun(stage,run){
+  const isAudit=stage==="@audit", info=$(isAudit?"auditRunInfo":"stageRunInfo"),button=$(isAudit?"runAudit":"runStage");
+  button.hidden=!connectedProject || !projectData?.stageRuns;
+  button.disabled=submitting || run?.status==="running" || (!isAudit && blockers(stage).length>0);
+  const labels={running:"В работе",failed:"Ошибка запуска или выполнения",done:"Выполнено",partial:"Шаг выполнен",waiting:"Нужен ответ"};
+  info.replaceChildren();
+  if(!run){
+    if(isAudit && projectData?.lastAudit)info.textContent="Последний аудит · "+new Date(projectData.lastAudit.date).toLocaleDateString("ru")+" · "+projectData.lastAudit.summary;
+    if(!isAudit && connectedProject)info.textContent=projectData?.stageRuns?"При запуске задание сохранится и будет отправлено в чат этого этапа.":"Перезапустите сервер конструктора для запуска шагов.";
+    return;
+  }
+  info.append(el("strong",labels[run.status]||run.status),el("p",run.message));
+  if(run.threadId){const link=el("a","Открыть чат Codex ↗");link.href="codex://threads/"+encodeURIComponent(run.threadId);info.append(link);}
+}
+async function launchStep(next,stage){
+  if(submitting || conflict)return;
+  const error=$(stage==="@audit"?"auditError":"detailError");
+  submitting=true;editSequence++;error.textContent="";
+  displayRun(stage,projectData.stageRuns[stage]);
+  try{
+    await writeQueue;
+    if(conflict)throw Error("Обновите страницу после сохранения локальных правок.");
+    const key=JSON.stringify([stage,projectRevision,next]);
+    if(launchIntent?.key!==key)launchIntent={key,id:crypto.randomUUID()};
+    const response=await fetch("/api/stage-run",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({stageId:stage,requestId:launchIntent.id,revision:projectRevision,plan:next})});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error||"Не удалось запустить шаг.");
+    launchIntent=null;plan=next;projectRevision=data.revision;projectData.stageRuns[stage]=data.run;
+    if(stage!=="@audit"){selected=stage;editing=stage;pendingNew=null;}
+    render();notice(data.run.message);await refreshProject(true);
+    if(stage!=="@audit" && $("detail").open && editing===stage && nodeById(stage))stageDetails(nodeById(stage));
+  }catch(e){error.textContent=e.message;}
+  finally{submitting=false;displayRun(stage,projectData.stageRuns[stage]);}
+}
+async function pollRun(){
+  const stage=$("auditDialog").open?"@audit":$("detail").open?editing:null;
+  if(!stage || submitting || projectData?.stageRuns?.[stage]?.status!=="running")return;
+  try{
+    const response=await fetch("/api/stage-run?stage="+encodeURIComponent(stage),{cache:"no-store"});
+    if(!response.ok)return;
+    const run=await response.json();
+    if(!run)return;
+    projectData.stageRuns[stage]=run;
+    if(stage===($("auditDialog").open?"@audit":$("detail").open?editing:null))displayRun(stage,run);
+    if(run.status==="running")return;
+    if(stage==="@audit"){await refreshProject(true);return;}
+    if(!$("detail").open || stage!==editing)return;
+    if(formDraft()!==savedStageDraft){notice("Шаг завершён. Ваши правки в карточке сохранены до её закрытия.");return;}
+    const seq=editSequence,data=await projectApi();
+    if(seq!==editSequence || writeCount || !$("detail").open || stage!==editing || formDraft()!==savedStageDraft)return;
+    projectData=data;projectRevision=data.revision;plan=addModeGate(data.plan);render();
+    const n=nodeById(stage);
+    if(n){form.elements.report.value=n.report||"";stageDetails(n);}
+  }catch{/* The project's polling resumes when the server is available. */}
 }
 function setupProjectView() {
+  $("auditButton").hidden=!connectedProject;
+  $("auditButton").onclick=()=>{displayRun("@audit",projectData?.stageRuns?.["@audit"]);$("auditError").textContent="";$("auditDialog").showModal();};
+  $("runAudit").onclick=()=>launchStep(plan,"@audit");
+  if(connectedProject){
+    setInterval(pollRun,2000);
+    $("detail").addEventListener("close",()=>{if(projectData && !writeCount && !submitting)refreshProject(true);});
+  }
   $("projectButton").onclick=()=>connectedProject?refreshProject(true):$("projectHelp").showModal();
   $("continueChat").onclick=()=>window.open("/api/handoff","_blank","noopener");
   const gitForm=$("gitForm");

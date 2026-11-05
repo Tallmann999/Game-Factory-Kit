@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Проверить 45 скиллов и профили
+      - name: Проверить 46 скиллов и профили
         run: python scripts/kit.py validate
       - name: Проверить установщик
         run: python -m unittest discover -s tests -v

@@ -3,6 +3,7 @@
 // Tasks describe the contribution of a skill at this particular stage.
 const stageSkills = {
   idea: {
+    "game-project-audit": "Сверяет все этапы с ранее созданными документами, сценами и результатами проверок.",
     "game-creator": "Записывает идею игрока и уточняет, что он будет делать в первом раунде.",
     "game-design": "Помогает сформулировать основное действие, если идея пока описывает только тему или сеттинг."
   },

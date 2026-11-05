@@ -197,6 +197,12 @@
       "source_ref": "0.1.0"
     },
     {
+      "name": "game-project-audit",
+      "origin": "Original Game Factory Kit workflow",
+      "license": "MIT",
+      "source_ref": "project-dashboard"
+    },
+    {
       "name": "game-qa",
       "origin": "Original Game Studio Kit workflow",
       "license": "MIT",
@@ -278,6 +284,7 @@
   "profiles": {
     "core": [
       "game-creator",
+      "game-project-audit",
       "game-market-research",
       "game-design",
       "game-mvp",
@@ -285,6 +292,7 @@
     ],
     "web": [
       "game-creator",
+      "game-project-audit",
       "game-market-research",
       "game-design",
       "game-mvp",
@@ -306,6 +314,7 @@
     ],
     "art": [
       "game-creator",
+      "game-project-audit",
       "game-market-research",
       "game-design",
       "game-mvp",
@@ -339,6 +348,7 @@
     ],
     "unity": [
       "game-creator",
+      "game-project-audit",
       "game-market-research",
       "game-design",
       "game-mvp",
@@ -354,6 +364,7 @@
     ],
     "roblox": [
       "game-creator",
+      "game-project-audit",
       "game-market-research",
       "game-design",
       "game-mvp",
@@ -368,6 +379,7 @@
     ],
     "mobile": [
       "game-creator",
+      "game-project-audit",
       "game-market-research",
       "game-design",
       "game-mvp",
@@ -416,6 +428,7 @@
       "game-asset-pipeline",
       "game-audio",
       "game-creator",
+      "game-project-audit",
       "game-design",
       "game-market-research",
       "game-marketing",
