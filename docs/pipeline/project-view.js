@@ -102,6 +102,12 @@ function displayRun(stage,run){
   info.append(el("strong",labels[run.status]||run.status),el("p",run.message));
   if(run.status==="draft" && run.draftUrl?.startsWith("codex://new?")){
     const link=el("a","Открыть подготовленный чат ↗");link.href=run.draftUrl;info.append(link);
+    const fallback=el("details"),summary=el("summary","Если браузер не открыл Codex");
+    const draft=new URL(run.draftUrl).searchParams;
+    const field=el("textarea");field.readOnly=true;field.rows=4;field.value=draft.get("prompt")||"";
+    field.setAttribute("aria-label","Задание для нового чата");field.onfocus=()=>field.select();
+    fallback.append(summary,el("p","Откройте новый чат в проекте "+draft.get("path")+", скопируйте и отправьте это задание."),field);
+    info.append(fallback);
   }
   if(run.threadId){const link=el("a","Открыть чат Codex ↗");link.href="codex://threads/"+encodeURIComponent(run.threadId);info.append(link);}
   if(run.mode==="desktop" && run.status==="running"){
@@ -147,7 +153,7 @@ async function pollRun(){
     const response=await fetch("/api/stage-run?stage="+encodeURIComponent(stage),{cache:"no-store"});
     if(!response.ok)return;
     const run=await response.json();
-    if(!run)return;
+    if(!run || JSON.stringify(run)===JSON.stringify(projectData.stageRuns[stage]))return;
     projectData.stageRuns[stage]=run;
     if(stage===($("auditDialog").open?"@audit":$("detail").open?editing:null))displayRun(stage,run);
     if(["draft","running"].includes(run.status))return;
