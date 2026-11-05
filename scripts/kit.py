@@ -286,7 +286,7 @@ class Kit:
         project_path = checked_path(project)
         if project_path.exists() and not project_path.is_dir():
             raise KitError(f"Project is not a directory: {project_path}")
-        if contained(self.root, project_path) or contained(project_path, self.root):
+        if contained(self.root, project_path) or contained(project_path / "docs" / "game", self.root):
             raise KitError("Project must be outside the kit source tree")
         templates = checked_path(self.root / "skills" / "game-creator" / "assets" / "templates")
         files = tree_files(templates)
@@ -408,6 +408,14 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "install":
                 dest = checked_path(args.project) / ".agents" / "skills" if args.project else args.dest
                 report = kit.install(dest, args.profile, args.dry_run, args.backup_and_replace)
+                if args.project and not args.dry_run:
+                    location = checked_path(checked_path(args.project) / ".game-factory" / "kit-location.txt")
+                    location.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        kit_location = os.path.relpath(kit.root, checked_path(args.project))
+                    except ValueError:  # Separate Windows volumes
+                        kit_location = str(kit.root)
+                    location.write_text(kit_location + "\n", encoding="utf-8")
             elif args.command == "init":
                 report = kit.init_project(args.project)
             elif args.command == "validate":

@@ -1,0 +1,32 @@
+.heading { padding-bottom: 10px; }
+.release { min-width: min(210px, 42%); color: #455744; }
+.release div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12px; }
+.release strong { color: #273d23; font-size: 22px; font-variant-numeric: tabular-nums; }
+.release small { font-size: 11px; color: #586956; }
+#projectNext { margin: 0 28px 10px; color: #465b40; font-size: 13px; }
+.project-tools { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 28px 12px; }
+.project-tools button { font-size: 12px; }
+.card { height: 154px; }
+.card[data-status=planned] { background: white; }
+.card[data-status=active], .card[data-status=waiting] { background: #fff3c5; border-color: #d8b055; }
+.card[data-status=done] { background: #e0f2d8; border-color: #85b679; }
+.card .health { display: flex; align-items: center; position: absolute; bottom: 10px; left: 16px; right: 16px; gap: 8px; }
+.health progress { flex: 1; min-width: 0; accent-color: #b78210; height: 8px; }
+.card[data-status=done] progress { accent-color: #53874c; }
+.card[data-status=active] .state { background: #f3dd97; color: #614a13; }
+.health progress, .release progress { appearance: none; border: 0; border-radius: 4px; overflow: hidden; }
+.health progress::-webkit-progress-bar, .release progress::-webkit-progress-bar { background: #d5dccc; }
+.health progress::-webkit-progress-value { background: #b78210; }
+.card[data-status=done] progress::-webkit-progress-value, .release progress::-webkit-progress-value { background: #578546; }
+.health small { min-width: 30px; text-align: right; color: #394333; font: 11px/1.2 Consolas, monospace; }
+#detail { width: min(600px, 95vw); }
+.stage-progress { display: flex; align-items: center; gap: 16px; }
+.stage-progress input { width: 80px; }
+.stage-progress p, .stage-evidence li { font-size: 13px; }
+.stage-evidence { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; }
+.stage-evidence h3 { margin: 0; font-size: 14px; }
+.stage-evidence ul { margin: 5px 0 8px; padding-left: 18px; overflow-wrap: anywhere; }
+.stage-evidence a { color: #36642e; }
+#projectHelp pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media(max-width:800px) { .project-tools { padding-inline: 14px; } }
+@media(max-width:620px) { .project-tools { gap: 4px; padding-bottom: 6px; } .project-tools button { font-size: 11px; padding: 4px 6px; } .release strong { font-size: 17px; } }

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Конструктор пайплайна · Game Factory Kit</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="tour.css">
+  <script defer src="model.js?v=project2"></script>
+  <script defer src="skills.js"></script>
+  <link rel="stylesheet" href="progress.css">
+  <script defer src="project-view.js"></script>
+  <script defer src="app.js?v=project2"></script>
+  <script defer src="tour.js?v=project2"></script>
+</head>
+<body>
+<header>
+  <div class="brand"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#ccfa70"/><path d="m7 12 9-5 9 5-9 5zm0 5 9 5 9-5m-18 5 9 5 9-5" fill="none" stroke="#18271a" stroke-width="2.3" stroke-linejoin="round"/></svg>Game Factory Kit</div>
+  <span class="divider">/</span><span class="subbrand">Конструктор пайплайна</span>
+  <div class="tools"><button id="tourStart">Обучение</button><button id="load">Открыть JSON</button><input hidden type="file" id="file" accept=".json,application/json"><button id="save">Скачать JSON ↓</button></div>
+</header>
+<main>
+  <aside><div class="aside-title">Этапы <span id="count"></span></div><nav id="outline" aria-label="Этапы пайплайна"></nav>
+  <button class="add" id="add">＋ Добавить этап</button><div class="progress"><div>Выполнено <strong id="amount"></strong></div><progress id="progress" value="0" max="9"></progress></div></aside>
+  <section class="editor">
+
+    <div class="heading"><div><div class="eyebrow">Рабочая схема</div><h1>От идеи до игры</h1></div><div class="release" title="Среднее выполнение этапов схемы. Для сборки учитываются фичи в объёме MVP."><div>Готовность к релизу <strong id="releaseValue">0%</strong></div><progress id="releaseBar" max="100" value="0" aria-label="Готовность к релизу"></progress><small id="featureCount"></small></div></div>
+    <p id="projectNext" hidden></p>
+    <div class="project-tools"><button id="projectButton">Подключить игру</button><button id="gitButton">Ветка для фич</button><button id="platformButton">Выбрать платформу</button><button id="modeButton" hidden>Выбрать режим работы</button><button id="continueChat" hidden>В новый чат ↗</button></div>
+    <div class="bar"><div class="tabs"><button id="mapTab" aria-pressed="true">Схема</button><button id="skillsTab" aria-pressed="false">Скиллы по этапам</button><button id="tasksTab" aria-pressed="false">Задания агентам</button></div><button class="green" id="brief">Задание для Codex ↗</button></div>
+    <section id="tour" hidden aria-labelledby="tourTitle">
+      <div class="tour-meta"><span id="tourStep"></span><button id="tourSkip">Пропустить</button></div>
+      <div aria-live="polite" aria-atomic="true"><h2 id="tourTitle"></h2><p id="tourText"></p></div>
+      <div id="tourModes" hidden><button data-mode="manual">Ручной</button><button data-mode="robocop">Робокоп</button><p id="tourModeText" aria-live="polite"></p></div>
+      <div class="tour-nav"><button id="tourBack">Назад</button><button id="tourNext" class="green">Дальше →</button></div>
+    </section>
+    <div id="canvasArea">
+      <div id="viewport" tabindex="0" aria-label="Поле схемы"><div id="extent"><div id="world"><svg id="wires" aria-label="Связи этапов"></svg><div id="cards"></div></div></div></div>
+      <div class="zoom"><button id="minus" title="Уменьшить масштаб" aria-label="Уменьшить масштаб">−</button><output id="percent"></output><button id="plus" title="Увеличить масштаб" aria-label="Увеличить масштаб">＋</button><button id="fit" title="Показать всю схему">Вся схема</button></div>
+    </div>
+    <section id="tasks" hidden aria-label="Очередь заданий"></section>
+    <section id="skillsView" hidden aria-label="Скиллы по этапам">
+      <div class="skill-filters">
+        <label>Этап<select id="stageFilter"></select></label>
+        <label>Поиск<input id="skillSearch" type="search" placeholder="Название скилла или задача"></label>
+      </div>
+      <div id="skillGroups"></div>
+    </section>
+    <footer><span id="message" aria-live="polite">Потяните за точку блока, чтобы соединить этапы.</span><span id="persist"></span></footer>
+  </section>
+</main>
+<dialog id="detail"><form id="editorForm">
+  <div class="dialog-head"><div class="eyebrow" id="kind"></div><button type="button" class="close" aria-label="Закрыть">×</button></div>
+  <h2 id="detailTitle">Карточка этапа</h2>
+  <button type="button" id="detailPlatform" hidden>Настроить платформу</button><button type="button" id="detailMode" hidden>Выбрать режим работы</button>
+  <details id="stageInfo"><summary>Какие скиллы входят в этап</summary><ul id="stageList"></ul></details>
+  <label>Название<input name="title" required maxlength="100"></label>
+  <label>Краткое описание<textarea name="description" rows="2" maxlength="3000"></textarea></label>
+  <div class="pair"><label>Агент / скилл<input name="agent" required maxlength="120" list="roles"></label><label>Статус<select name="status"></select></label></div>
+  <label>Ожидаемый результат<input name="result" required maxlength="1000"></label>
+  <label>Фактический результат / путь к файлу<input name="report" maxlength="3000"></label>
+  <label>Когда спрашивать пользователя<select name="policy"></select></label>
+  <div class="stage-progress"><label>Выполнено, %<input name="progress" type="number" min="0" max="100" step="1"></label><p id="stageGate"></p></div>
+  <section class="stage-evidence"><h3>Документы этапа</h3><ul id="documentList"></ul>
+  <details><summary>Привязать документы</summary><label>Пути от папки игры, по одному на строку<textarea name="documents" rows="2"></textarea></label></details></section>
+  <details class="stage-evidence" id="featureDetails" hidden><summary id="featureSummary">Фичи MVP</summary><ul id="featureRows"></ul></details>
+  <section class="stage-evidence"><h3>Что осталось сделать</h3><ul id="remainingList"></ul>
+  <label>Следующий шаг<textarea name="remaining" rows="2" maxlength="3000"></textarea></label></section>
+  <p class="error" id="detailError" role="alert"></p>
+  <div class="actions"><button type="button" class="danger" id="remove">Удалить этап</button><button class="green" type="submit">Сохранить</button></div>
+</form></dialog>
+<dialog id="projectHelp"><div class="dialog-head"><h2>Подключить игру</h2><button type="button" class="close" aria-label="Закрыть">×</button></div><p>В чате проекта скажите «Покажи конструктор». Для запуска вручную откройте терминал в папке набора и укажите папку своей игры.</p><pre>node scripts/project.cjs "путь/к/игре"</pre><p>Откройте адрес из терминала. Конструктор прочитает документы этой игры и сохранит схему в её папке.</p></dialog>
+<dialog id="gitDialog"><form id="gitForm"><div class="dialog-head"><h2>В какую ветку отправлять фичи?</h2><button type="button" class="close" aria-label="Закрыть">×</button></div><p>После приёмки каждой фичи Робокоп обновляет Feature Index, создаёт один коммит и делает push.</p><div class="pair"><label>Ветка<input name="branch" list="gitBranches" required maxlength="255"></label><label>Remote<input name="remote" list="gitRemotes" required maxlength="255"></label></div><datalist id="gitBranches"></datalist><datalist id="gitRemotes"></datalist><p class="error" id="gitError" role="alert"></p><div class="actions"><button class="green">Сохранить назначение</button></div></form></dialog>
+<dialog id="platformDialog" aria-labelledby="platformTitle"><form id="platformForm">
+  <div class="dialog-head"><div class="eyebrow">Выбор платформы</div><button type="button" class="close" aria-label="Закрыть">×</button></div>
+  <h2 id="platformTitle">На какой платформе ты будешь делать свою игру?</h2>
+  <label>Платформа / движок<select name="engine" required></select></label>
+  <div class="pair"><label>Устройство<select name="device" required></select></label><label>Размерность<select name="dimension" required></select></label></div>
+  <p id="platformPreview" aria-live="polite"></p>
+  <div class="actions"><button type="submit" class="green">Зафиксировать выбор</button></div>
+</form></dialog>
+<dialog id="modeDialog"><div class="dialog-head"><div class="eyebrow">После выбора платформы</div><button class="close" aria-label="Закрыть">×</button></div>
+  <h2>Как выполнять фичи?</h2>
+  <button class="mode-option" id="manualMode"><b>Ручной режим</b><span>Вы выбираете F-ID, смотрите результат и принимаете коммит для отправки.</span></button>
+  <button class="mode-option" id="autoMode"><b>Робокоп</b><span>По очереди реализует доступные фичи, проверяет и отправляет коммит в выбранную ветку. До 8 часов за запуск.</span></button>
+  <p id="queueNote" role="status"></p><p>Для работы с игрой используйте JSON проекта и откройте доску командой из README. Там появятся карточки из Feature Index.</p>
+</dialog>
+<dialog id="handoff"><div class="dialog-head"><div class="eyebrow">Передача работы</div><button class="close" aria-label="Закрыть">×</button></div><h2>Задание для Codex</h2><p>Скачайте задание в папку игры и передайте его Codex. Координатор получит порядок этапов, исполнителей и правила вопросов.</p><pre id="briefText"></pre><details><summary>Запустить исполнителя в терминале</summary><p>Скачайте JSON в папку игры. В терминале из папки набора выполните команду, указав свои пути. После сеанса откройте обновлённый JSON в конструкторе.</p><pre>node scripts/run-pipeline.cjs "путь/к/game-pipeline.json" --project "путь/к/игре"</pre></details><div class="actions"><button id="downloadBrief" class="green">Скачать задание .md ↓</button></div></dialog>
+<datalist id="roles"></datalist>
+</body></html>

@@ -1,0 +1,10 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Робокоп · Фичи игры</title><link rel="stylesheet" href="/board.css"><script defer src="/board.js"></script></head>
+<body><header><b>Game Factory Kit / Робокоп</b><span id="platform"></span></header><main>
+<div class="top"><div><small id="mode"></small><h1>Фичи игры</h1></div><button id="run">Запустить очередь · до 8 ч</button><button id="stop" hidden>Завершить после фичи</button></div>
+<div class="filters"><button id="all">Все фичи</button><button id="inbox"></button><button id="later">Отложенные вопросы</button></div>
+<p id="msg" role="status"></p><div id="list"></div></main>
+<dialog id="card"><button class="close" aria-label="Закрыть">×</button><small id="fid"></small><h2 id="title"></h2>
+<p id="meta"></p><details open><summary>Бриф фичи</summary><div id="preview"></div></details>
+<details id="editor"><summary>Редактировать Markdown</summary><textarea id="brief" rows="9"></textarea><button id="save">Сохранить бриф</button></details>
+<div id="result"></div><div id="media"></div><div id="actions"></div></dialog>
+</body></html>
