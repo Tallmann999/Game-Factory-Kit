@@ -353,7 +353,9 @@ form.onsubmit=async evt=>{
   n.remaining=form.elements.remaining.value.trim();
   const next={...plan,nodes};
   try {checkDiagram(next);ordered(next);} catch(error) {$("detailError").textContent=error.message;return;}
-  if(evt.submitter?.id==="runStage"){await launchStep(next,n.id);return;}
+  if(["runStage","desktopStage"].includes(evt.submitter?.id)){
+    await launchStep(next,n.id,evt.submitter.id==="desktopStage"?"desktop":"auto");return;
+  }
   plan=next;selected=n.id;$("detail").close();changed("Этап сохранён.");
 };
 $("remove").onclick=()=>{

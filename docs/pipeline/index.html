@@ -68,7 +68,7 @@
   <label>Следующий шаг<textarea name="remaining" rows="2" maxlength="3000"></textarea></label></section>
   <div id="stageRunInfo" class="run-info" role="status"></div>
   <p class="error" id="detailError" role="alert"></p>
-  <div class="actions"><button type="button" class="danger" id="remove">Удалить этап</button><button type="submit">Сохранить</button><button id="runStage" class="green" type="submit" hidden>Запустить в новом чате ↗</button></div>
+  <div class="actions"><button type="button" class="danger" id="remove">Удалить этап</button><button type="submit">Сохранить</button><button id="runStage" type="submit" hidden>Запустить автоматически</button><button id="desktopStage" class="green" type="submit" hidden>Работать в чате Codex ↗</button></div>
 </form></dialog>
 <dialog id="auditDialog"><div class="dialog-head"><h2>Аудит проекта</h2><button class="close" aria-label="Закрыть">×</button></div><p>Codex проверит документы, сцены и отчёты этой игры. В карточках появятся найденные подтверждения и оставшиеся шаги.</p><div class="run-info" id="auditRunInfo" role="status"></div><p class="error" id="auditError" role="alert"></p><div class="actions"><button class="green" id="runAudit">Начать аудит в новом чате ↗</button></div></dialog>
 <dialog id="projectHelp"><div class="dialog-head"><h2>Подключить игру</h2><button type="button" class="close" aria-label="Закрыть">×</button></div><p>В чате проекта скажите «Покажи конструктор». Для запуска вручную откройте терминал в папке набора и укажите папку своей игры.</p><pre>node scripts/project.cjs "путь/к/игре"</pre><p>Откройте адрес из терминала. Конструктор прочитает документы этой игры и сохранит схему в её папке.</p></dialog>

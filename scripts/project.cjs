@@ -61,7 +61,7 @@ function snapshot(root) {
   const data=read(root);
   const analysis=audit(root,data.plan),stageRuns=runs.recentRuns(root,data.plan);
   for(const [stage,run] of Object.entries(stageRuns))if(run.status==="running" && analysis.stages[stage])analysis.stages[stage].status="active";
-  return {...data,project:path.basename(root),...analysis,stageRuns};
+  return {...data,project:path.basename(root),...analysis,stageRuns,desktopChat:true};
 }
 function handoff(root,data) {
   const {plan,stages,features,nextAction}=data;
@@ -96,11 +96,13 @@ function serve(root,{port=0,launch}={}) {
       if(req.headers.host!==new URL(origin).host)return send(403,"{}");
       const url=new URL(req.url,origin);
       const startRun=req.method==="POST" && url.pathname==="/api/stage-run";
-      if(startRun || (req.method==="PUT" && url.pathname==="/api/project")) {
+      const detachRun=req.method==="POST" && url.pathname==="/api/stage-run/detach";
+      if(startRun || detachRun || (req.method==="PUT" && url.pathname==="/api/project")) {
         if(req.headers.origin!==origin || req.headers["content-type"]!=="application/json")return send(403,"{}");
         const chunks=[];let size=0;
         for await(const chunk of req){size+=chunk.length;if(size>4*1024*1024)return send(413,"{}");chunks.push(chunk);}
         const body=JSON.parse(Buffer.concat(chunks));
+        if(detachRun)return send(200,JSON.stringify(await require("./stage-chat.cjs").detach(root,body.stageId,body.requestId)));
         if(startRun)return send(202,JSON.stringify(runs.start(root,body,launch)));
         const {revision,plan}=body;
         const next=save(root,revision,plan);

@@ -91,7 +91,8 @@ function displayRun(stage,run){
   const isAudit=stage==="@audit", info=$(isAudit?"auditRunInfo":"stageRunInfo"),button=$(isAudit?"runAudit":"runStage");
   button.hidden=!connectedProject || !projectData?.stageRuns;
   button.disabled=submitting || run?.status==="running" || (!isAudit && blockers(stage).length>0);
-  const labels={running:"В работе",failed:"Ошибка запуска или выполнения",done:"Выполнено",partial:"Шаг выполнен",waiting:"Нужен ответ"};
+  if(!isAudit){$("desktopStage").hidden=button.hidden || !projectData?.desktopChat;$("desktopStage").disabled=button.disabled;}
+  const labels={draft:"Ждёт отправки в Codex",running:"В работе",closed:"Чат отвязан",failed:"Ошибка запуска или выполнения",done:"Выполнено",partial:"Шаг выполнен",waiting:"Нужен ответ"};
   info.replaceChildren();
   if(!run){
     if(isAudit && projectData?.lastAudit)info.textContent="Последний аудит · "+new Date(projectData.lastAudit.date).toLocaleDateString("ru")+" · "+projectData.lastAudit.summary;
@@ -99,9 +100,25 @@ function displayRun(stage,run){
     return;
   }
   info.append(el("strong",labels[run.status]||run.status),el("p",run.message));
+  if(run.status==="draft" && run.draftUrl?.startsWith("codex://new?")){
+    const link=el("a","Открыть подготовленный чат ↗");link.href=run.draftUrl;info.append(link);
+  }
   if(run.threadId){const link=el("a","Открыть чат Codex ↗");link.href="codex://threads/"+encodeURIComponent(run.threadId);info.append(link);}
+  if(run.mode==="desktop" && run.status==="running"){
+    const detach=el("button","Отвязать чат от карточки");detach.type="button";
+    detach.onclick=async()=>{
+      try {
+        const response=await fetch("/api/stage-run/detach",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({stageId:stage,requestId:run.id})});
+        const result=await response.json();
+        if(!response.ok)throw Error(result.error);
+        projectData.stageRuns[stage]=result;displayRun(stage,result);
+      }catch(e){notice(e.message);}
+    };
+    info.append(document.createTextNode(" "),detach);
+  }
 }
-async function launchStep(next,stage){
+async function launchStep(next,stage,mode="auto"){
   if(submitting || conflict)return;
   const error=$(stage==="@audit"?"auditError":"detailError");
   submitting=true;editSequence++;error.textContent="";
@@ -109,13 +126,14 @@ async function launchStep(next,stage){
   try{
     await writeQueue;
     if(conflict)throw Error("Обновите страницу после сохранения локальных правок.");
-    const key=JSON.stringify([stage,projectRevision,next]);
+    const key=JSON.stringify([stage,mode,projectRevision,next]);
     if(launchIntent?.key!==key)launchIntent={key,id:crypto.randomUUID()};
     const response=await fetch("/api/stage-run",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({stageId:stage,requestId:launchIntent.id,revision:projectRevision,plan:next})});
+      body:JSON.stringify({stageId:stage,requestId:launchIntent.id,revision:projectRevision,plan:next,mode})});
     const data=await response.json();
     if(!response.ok)throw Error(data.error||"Не удалось запустить шаг.");
     launchIntent=null;plan=next;projectRevision=data.revision;projectData.stageRuns[stage]=data.run;
+    if(data.run.status==="draft" && data.run.draftUrl?.startsWith("codex://new?"))location.href=data.run.draftUrl;
     if(stage!=="@audit"){selected=stage;editing=stage;pendingNew=null;}
     render();notice(data.run.message);await refreshProject(true);
     if(stage!=="@audit" && $("detail").open && editing===stage && nodeById(stage))stageDetails(nodeById(stage));
@@ -124,7 +142,7 @@ async function launchStep(next,stage){
 }
 async function pollRun(){
   const stage=$("auditDialog").open?"@audit":$("detail").open?editing:null;
-  if(!stage || submitting || projectData?.stageRuns?.[stage]?.status!=="running")return;
+  if(!stage || submitting || !["running","draft"].includes(projectData?.stageRuns?.[stage]?.status))return;
   try{
     const response=await fetch("/api/stage-run?stage="+encodeURIComponent(stage),{cache:"no-store"});
     if(!response.ok)return;
@@ -132,7 +150,7 @@ async function pollRun(){
     if(!run)return;
     projectData.stageRuns[stage]=run;
     if(stage===($("auditDialog").open?"@audit":$("detail").open?editing:null))displayRun(stage,run);
-    if(run.status==="running")return;
+    if(["draft","running"].includes(run.status))return;
     if(stage==="@audit"){await refreshProject(true);return;}
     if(!$("detail").open || stage!==editing)return;
     if(formDraft()!==savedStageDraft){notice("Шаг завершён. Ваши правки в карточке сохранены до её закрытия.");return;}

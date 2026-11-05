@@ -63,12 +63,42 @@ test("launch saves only the requested step, deduplicates clicks and publishes a 
   const {perform}=require("../scripts/stage-run.cjs");
   await perform(root,node.id,request.requestId,async(dir,job,started)=>{
     assert.equal(dir,root);assert.match(job.prompt,/Сравнить две игры/);assert.match(job.prompt,/idea\.md/);
-    started(thread);fs.writeFileSync(path.join(root,"research.md"),"Факты и выводы.");
+    started(thread);
+    assert.equal(opened,undefined);
+    assert.equal(snapshot(root).stageRuns.research.threadId,"");
+    fs.writeFileSync(path.join(root,"research.md"),"Факты и выводы.");
     return {status:"partial",progress:60,summary:"Источники собраны.",remaining:"Проверить гипотезу",documents:["research.md"]};
-  },id=>{opened=id;});
+  },id=>{assert.equal(snapshot(root).stageRuns.research.status,"partial");opened=id;});
   assert.equal(opened,thread);const after=snapshot(root);assert.equal(after.stageRuns.research.threadId,thread);
   assert.equal(after.stages.research.percent,60);assert.equal(after.stages.concept.status,"planned");
   assert.equal(after.plan.nodes.find(n=>n.id===node.id).remaining,"Проверить гипотезу");
+});
+
+test("native draft runs in its sending chat and returns documents to the same card",async t=>{
+  const root=fixture(t),data=read(root);
+  const runs=require("../scripts/stage-run.cjs"),chat=require("../scripts/stage-chat.cjs");
+  const id=require("node:crypto").randomUUID(),thread=require("node:crypto").randomUUID();
+  const request={...data,mode:"desktop",stageId:"idea",requestId:id};
+  const draft=runs.start(root,request,()=>assert.fail("A native draft must not start a worker")).run;
+  assert.equal(draft.status,"draft");
+  const url=new URL(draft.draftUrl);
+  assert.equal(url.protocol,"codex:");assert.equal(url.searchParams.get("path"),root);
+  assert.ok(url.searchParams.get("prompt").includes(id));
+  assert.equal(runs.start(root,{...request,revision:read(root).revision,requestId:require("node:crypto").randomUUID()}).run.id,id);
+  assert.equal(snapshot(root).stages.idea.status,"planned");
+  assert.match(await chat.begin(root,"idea",id,thread),/кликабельные/);
+  assert.equal(snapshot(root).stageRuns.idea.threadId,thread);
+  await assert.rejects(chat.begin(root,"idea",id,require("node:crypto").randomUUID()),/запущен/);
+  fs.writeFileSync(path.join(root,"idea.md"),"Повар жарит стейк.");
+  fs.writeFileSync(path.join(root,runs.directory,id+".result.json"),JSON.stringify({
+    status:"done",progress:100,summary:"Идея записана.",documents:["idea.md"],remaining:"Исследование"}));
+  await chat.finish(root,"idea",id,thread);
+  assert.equal(await chat.finish(root,"idea",id,thread),"Идея записана.");
+  assert.deepEqual(snapshot(root).stageRuns.idea.documents,["idea.md"]);
+  const retry=runs.start(root,{...read(root),mode:"desktop",stageId:"idea",requestId:require("node:crypto").randomUUID()}).run;
+  await chat.begin(root,"idea",retry.id,thread);
+  await chat.detach(root,"idea",retry.id);
+  await assert.rejects(chat.finish(root,"idea",retry.id,thread),/закрыта/);
 });
 test("audit can credit earlier evidence in a differently named file without marking a saved task as progress",async t=>{
   const root=fixture(t),data=read(root),id=require("node:crypto").randomUUID();
