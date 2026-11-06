@@ -1,5 +1,6 @@
 "use strict";
 const fs=require("node:fs");
+const path=require("node:path");
 const readline=require("node:readline");
 const runs=require("./stage-run.cjs");
 const {safeFile}=require("./robocop-board.cjs");
@@ -24,10 +25,33 @@ async function begin(root,stage,id,thread) {
       throw Error("Этот шаг уже запущен или завершён. Проверьте карточку перед работой.");
     job.threadId=thread;job.status="running";job.message="Работа идёт в чате Codex.";runs.store(file,job);
     const resultPath=runs.directory+"/"+id+".result.json";
-    return [job.prompt,"Перед финальным сообщением запиши результат карточки в "+resultPath+" (UTF-8 JSON).",
+    return [job.prompt,
+      "Перед первой фичей и после сжатия прочитай "+path.join(__dirname,"../skills/game-creator/references/context-handoff.md")+". Проверь запас контекста перед каждым F-ID и после проверяемых подшагов. При достаточном запасе продолжай в этом чате.",
+      "Если нужна передача, сначала сохрани summary, создай продолжение в той же папке и назови его по F-ID и названию из Feature Index. Перед отправкой задания передай владельца карточки командой",
+      'node "'+__filename+'" handoff '+stage+" "+id+" "+thread+' <target-thread-id> "<относительный путь к summary.md>"',
+      'Новому чату передай команду node "'+__filename+'" begin '+stage+" "+id+" и путь к summary. Текущий чат после передачи завершает работу.",
+      "Перед финальным сообщением запиши результат карточки в "+resultPath+" (UTF-8 JSON).",
       "Схема результата: "+JSON.stringify(schemaFor(stage)),
       'Передай результат карточке командой node "'+__filename+'" finish '+stage+" "+id+" "+thread,
       runs.chatAnswer].join("\n\n");
+  });
+}
+async function handoff(root,stage,id,source,target,checkpoint="docs/game/next-chat-prompt.md") {
+  return withJob(root,stage,id,(job,file)=>{
+    if(job.mode!=="desktop" || !uuid.test(source) || !uuid.test(target) || source===target)
+      throw Error("Нужны разные ID исходного и нового чатов этого запуска.");
+    const last=job.handoffs?.at(-1);
+    if(job.threadId===target && last?.source===source && last?.target===target)
+      return "Карточка уже передана этому чату.";
+    if(job.status!=="running" || job.threadId!==source)throw Error("Владелец карточки изменился или запуск завершён.");
+    if(!/\.md$/i.test(checkpoint))throw Error("Сначала сохраните summary в Markdown внутри проекта.");
+    const summary=fs.readFileSync(safeFile(root,checkpoint),"utf8");
+    if(!summary.trim())throw Error("Сначала заполните summary.");
+    job.handoffs??=[];
+    job.handoffs.push({source,target,checkpoint,date:new Date().toISOString()});
+    job.threadId=target;job.message="Продолжение передано в новый чат. Сводка сохранена в "+checkpoint+".";
+    runs.store(file,job);
+    return "Владелец карточки обновлён. Отправьте поручение в чат "+target+".";
   });
 }
 async function finish(root,stage,id,thread) {
@@ -87,11 +111,12 @@ async function resultServer(root,stage,id) {
     }
   }
 }
-async function main([command,stage,id,arg,previous]){
+async function main([command,stage,id,arg,previous,checkpoint]){
   const root=fs.realpathSync(command==="mcp"?arg:process.cwd());
   if(command==="mcp")return resultServer(root,stage,id);
   if(command==="begin")return console.log(await begin(root,stage,id,arg||process.env.CODEX_THREAD_ID));
   if(command==="finish")return console.log(await finish(root,stage,id,arg||process.env.CODEX_THREAD_ID));
+  if(command==="handoff")return console.log(await handoff(root,stage,id,arg,previous,checkpoint));
   if(command==="attach")return withJob(root,stage,id,(job,file)=>{
     if(!uuid.test(arg) || job.threadId!==previous || !["done","partial","waiting"].includes(job.status))
       throw Error("Привязка возможна только к завершённому запуску с указанным исходным чатом.");
@@ -99,5 +124,5 @@ async function main([command,stage,id,arg,previous]){
   });
   throw Error("Неизвестная команда карточки.");
 }
-module.exports={begin,finish,detach};
+module.exports={begin,finish,detach,handoff};
 if(require.main===module)main(process.argv.slice(2)).catch(e=>{console.error(e.message);process.exitCode=1;});

@@ -150,13 +150,32 @@ class Board {
     c.deps.every(d=>this.cards.some(dep=>dep.id===d && dep.state==="done"))).sort((a,b)=>a.priority.localeCompare(b.priority));}
   prompt(c) {
     const build=this.plan.nodes.find(n=>n.id==="build");
-    return ["Ты исполнитель Робокопа. Выполни только "+c.id+" в текущей изолированной рабочей копии.",
+    return [c.id+" — "+c.title,
+      "Ты исполнитель фичи. Выполни только "+c.id+" в текущей изолированной рабочей копии.",
       "Назначение принятой фичи: "+this.target.remote+"/"+this.target.branch+".",platformLabel(this.plan),build?"Навыки по задаче: "+[build.agent,...extraSkills(build,this.plan)].join(", "):"",
       "Прочитай "+this.concept+", "+this.index+" и относящиеся к фиче документы. Авторские механики и пиллары имеют приоритет.",
       c.brief,"Принятые решения: "+c.decisions.join("\n"),"Продолжение: "+c.handoff,
       "Проверь git diff и уже сделанное. Исходные концепт и Feature Index служат входами. Не меняй ветки, историю Git, не коммить и не публикуй. Верни явный список изменённых файлов фичи без .robocop-handoff.md.",
-      "Пиши короткую актуальную сводку в .robocop-handoff.md после существенных шагов. Если остатка контекста мало, верни handoff с готовым промптом для новой сессии. Не пересказывай чат.",
+      "Перед реализацией оцени, достаточно ли контекста на этот F-ID, нужные документы, проверку и summary. Повтори оценку после проверяемых подшагов. При достаточном запасе продолжай текущую сессию. Если счётчик недоступен, оцени объём приблизительно и не выдумывай остаток токенов.",
+      "Сначала прочитай .robocop-handoff.md, если он существует, и сверь его с переданным продолжением и текущими файлами. Пиши актуальную сводку после существенных шагов: F-ID, сделанное, проверка, ограничения и первый незавершённый шаг.",
+      "При нехватке контекста сохрани .robocop-handoff.md и верни handoff. После произошедшего сжатия сделай это на ближайшей проверяемой паузе. Диспетчер продолжит эту же фичу в той же рабочей копии. Самостоятельно вторую очередь или другого исполнителя не запускай.",
       "При необходимости решения верни question. При необходимости визуальной оценки верни review. Для ready нужны реализация и фактическая проверка критерия. summary — результат и проверка, title — название изменения для Git. media — относительные пути к снимкам и видео."].join("\n\n");
+  }
+  checkpoint(c,summary,next) {
+    const file=safeFile(c.work,".robocop-handoff.md");
+    const marker="<!-- gfk-worker-notes -->";
+    const previous=fs.existsSync(file)?fs.readFileSync(file,"utf8"):"";
+    // Keep the worker's detailed notes without nesting our generated summaries.
+    const notes=previous.includes(marker)?previous.slice(previous.indexOf(marker)+marker.length).trim():previous.trim();
+    c.handoff=[c.id+" — "+c.title,
+      "Рабочая копия: "+c.work,
+      "Назначение: "+this.target.remote+"/"+this.target.branch,
+      summary,"Следующий шаг: "+next].join("\n\n");
+    const text=c.handoff+(notes?"\n\n"+marker+"\n"+notes:"")+"\n";
+    const tmp=file+"."+randomUUID()+".tmp";
+    try {fs.writeFileSync(tmp,text,{flag:"wx"});fs.renameSync(tmp,file);}
+    finally {fs.rmSync(tmp,{force:true});}
+    this.save();
   }
   async work(c,deadline) {
     if(!c.work) {
@@ -175,12 +194,17 @@ class Board {
         const checkpoint=fs.existsSync(file)?fs.readFileSync(file,"utf8").slice(-6000):
           "Контекст исчерпан. Проверь изменения и продолжи по критерию карточки. Файлы:\n"+git(c.work,"status","--short").slice(-3000);
         if(!checkpoint || checkpoint===c.handoff) throw error;
-        c.handoff=checkpoint;this.save();continue;
+        if(fs.existsSync(file)){c.handoff=checkpoint;this.save();}
+        else this.checkpoint(c,checkpoint,"Сверь рабочую копию и продолжи первый незавершённый шаг.");
+        continue;
       }
       if(typeof result.summary!=="string" || !result.summary.trim()) throw Error("Пустой отчёт исполнителя.");
       c.summary=result.summary;c.media=(result.media||[]).map(name=>{safeFile(c.work,name);return name;});
       if(result.status==="question"){c.question=result.next||c.summary;c.state="question";this.save();return;}
-      if(result.status==="handoff"){c.handoff=[result.summary,result.next||"Сверь изменения и продолжи по критерию приёмки."].join("\n\nСледующий шаг: ");this.save();continue;}
+      if(result.status==="handoff"){
+        this.checkpoint(c,result.summary,result.next||"Сверь изменения и продолжи по критерию приёмки.");
+        continue;
+      }
       if(!["ready","review"].includes(result.status) || !result.files?.length || !result.title?.trim()) throw Error("Нет файлов или результата для приёмки.");
       if(git(c.work,"rev-parse","HEAD")!==c.base) throw Error("Исполнитель изменил историю. Нужна ручная проверка.");
       const files=result.files.filter(name=>name!==".robocop-handoff.md");

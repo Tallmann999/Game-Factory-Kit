@@ -125,3 +125,28 @@ test("audit can credit earlier evidence in a differently named file without mark
   assert.equal(read(root).plan.nodes.find(n=>n.id==="research").remaining,"Сравнить аналоги");
   fs.unlinkSync(path.join(root,"design-notes.md"));result=snapshot(root);assert.equal(result.stages.research.percent,0);
 });
+
+test("native context handoff keeps the run, accepts a retry and prevents the old chat from finishing",async t=>{
+  const root=fixture(t),runs=require("../scripts/stage-run.cjs"),chat=require("../scripts/stage-chat.cjs");
+  const uuid=()=>require("node:crypto").randomUUID();
+  const id=uuid(),source=uuid(),target=uuid();
+  runs.start(root,{...read(root),mode:"desktop",stageId:"idea",requestId:id});
+  await chat.begin(root,"idea",id,source);
+  await assert.rejects(chat.handoff(root,"idea",id,source,target),/ENOENT/);
+  assert.equal(runs.load(root,"idea").threadId,source);
+  fs.writeFileSync(path.join(root,"checkpoint.md"),"F-001 — управление. Сделано: ввод. Проверка: PASS. Дальше: перезапуск.");
+  await chat.handoff(root,"idea",id,source,target,"checkpoint.md");
+  await chat.handoff(root,"idea",id,source,target,"checkpoint.md");
+  assert.equal(runs.load(root,"idea").handoffs.length,1);
+  assert.equal(runs.load(root,"idea").id,id);
+  await assert.rejects(chat.finish(root,"idea",id,source),/другому/);
+  await assert.rejects(chat.begin(root,"idea",id,source),/запущен/);
+  await assert.rejects(chat.handoff(root,"idea",id,source,uuid(),"checkpoint.md"),/Владелец/);
+  assert.match(await chat.begin(root,"idea",id,target),new RegExp("finish idea "+id+" "+target));
+  fs.writeFileSync(path.join(root,"idea.md"),"Повар готовит стейк.");
+  fs.writeFileSync(path.join(root,runs.directory,id+".result.json"),JSON.stringify({
+    status:"done",progress:100,summary:"Идея записана.",documents:["idea.md"],remaining:"Исследовать аналоги"}));
+  await chat.finish(root,"idea",id,target);
+  assert.equal(runs.load(root,"idea").status,"done");
+  assert.equal(snapshot(root).stages.idea.percent,100);
+});

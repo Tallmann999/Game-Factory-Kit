@@ -32,7 +32,11 @@ function finish(c){
 test("night queue hands off, skips a question, persists decisions and commits per feature",async t=>{
   const b=fixture(t,"robocop",(c,prompt)=>{
     if(c.id==="F-1" && c.turns===1)return {status:"handoff",summary:"Шаг 1",next:"Продолжи с шага 2"};
-    if(c.id==="F-1" && c.turns===2){assert.match(prompt,/Продолжи с шага 2/);return {status:"question",summary:"Нужен выбор",next:"Сколько очков?"};}
+    if(c.id==="F-1" && c.turns===2){
+      assert.match(prompt,/Продолжи с шага 2/);
+      assert.match(fs.readFileSync(path.join(c.work,".robocop-handoff.md"),"utf8"),/F-1 — Фича F-1[\s\S]*Продолжи с шага 2/);
+      return {status:"question",summary:"Нужен выбор",next:"Сколько очков?"};
+    }
     if(c.id==="F-1")assert.match(prompt,/Три очка/);
     return finish(c);
   },"const fs=require('fs');if(!fs.readdirSync('.').some(x=>x.endsWith('.txt')))process.exit(1)");
@@ -62,6 +66,28 @@ test("failed acceptance cannot publish or start a dependent feature",async t=>{
 test("unknown and cyclic dependencies are rejected",()=>{
   assert.throws(()=>parseIndex(row("F-1","F-2")),/зависимость/);
   assert.throws(()=>parseIndex(row("F-1","F-1")),/зависимость/);
+});
+
+test("manual handoff keeps worker notes and resumes the same feature and worktree",async t=>{
+  let workspace;
+  const board=fixture(t,"manual",(card,prompt)=>{
+    assert.ok(prompt.startsWith(card.id+" — "+card.title));
+    if(card.turns===1){
+      workspace=card.work;
+      fs.writeFileSync(path.join(card.work,".robocop-handoff.md"),"Проверка ввода PASS. Ограничение автора: только клавиатура.");
+      return {status:"handoff",summary:"Ввод реализован.",next:"Добавить перезапуск."};
+    }
+    assert.equal(card.work,workspace);
+    assert.match(prompt,/Добавить перезапуск/);
+    const summary=fs.readFileSync(path.join(card.work,".robocop-handoff.md"),"utf8");
+    assert.match(summary,/только клавиатура/);
+    assert.match(summary,/F-1 — Фича F-1/);
+    return finish(card);
+  });
+  await board.run("F-1");
+  assert.equal(board.cards[0].state,"review");
+  assert.equal(board.cards[0].turns,2);
+  assert.equal(board.cards[1].turns,0);
 });
 
 test("push failure keeps SHA and blocks queue; retry publishes to the chosen non-main branch",async t=>{
