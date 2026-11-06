@@ -60,7 +60,7 @@ function save(root,revision,plan) {
 function snapshot(root) {
   const data=read(root);
   const analysis=audit(root,data.plan),stageRuns=runs.recentRuns(root,data.plan);
-  for(const [stage,run] of Object.entries(stageRuns))if(run.status==="running" && analysis.stages[stage])analysis.stages[stage].status="active";
+  for(const [stage,run] of Object.entries(stageRuns))if(runs.active(run.status) && analysis.stages[stage])analysis.stages[stage].status="active";
   return {...data,project:path.basename(root),...analysis,stageRuns,desktopChat:true};
 }
 function handoff(root,data) {
@@ -87,7 +87,7 @@ function serve(root,{port=0,launch}={}) {
   initialize(root);
   const assets=new Set(["index.html","model.js","app.js","skills.js","tour.js","tour.css","style.css","progress.css","project-view.js"]);
   const types={".html":"text/html",".js":"text/javascript",".css":"text/css",".png":"image/png",".webp":"image/webp",".jpg":"image/jpeg",".jpeg":"image/jpeg"};
-  let origin;
+  let origin,runtimeStatus;
   const server=http.createServer(async(req,res)=>{
     const send=(status,body,type="application/json; charset=utf-8")=>{
       res.writeHead(status,{"Content-Type":type,"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"});res.end(body);
@@ -97,12 +97,14 @@ function serve(root,{port=0,launch}={}) {
       const url=new URL(req.url,origin);
       const startRun=req.method==="POST" && url.pathname==="/api/stage-run";
       const detachRun=req.method==="POST" && url.pathname==="/api/stage-run/detach";
-      if(startRun || detachRun || (req.method==="PUT" && url.pathname==="/api/project")) {
+      const cancelRun=req.method==="POST" && url.pathname==="/api/stage-run/cancel";
+      if(startRun || detachRun || cancelRun || (req.method==="PUT" && url.pathname==="/api/project")) {
         if(req.headers.origin!==origin || req.headers["content-type"]!=="application/json")return send(403,"{}");
         const chunks=[];let size=0;
         for await(const chunk of req){size+=chunk.length;if(size>4*1024*1024)return send(413,"{}");chunks.push(chunk);}
         const body=JSON.parse(Buffer.concat(chunks));
         if(detachRun)return send(200,JSON.stringify(await require("./stage-chat.cjs").detach(root,body.stageId,body.requestId)));
+        if(cancelRun)return send(200,JSON.stringify(await runs.cancel(root,body.stageId,body.requestId)));
         if(startRun)return send(202,JSON.stringify(runs.start(root,body,launch)));
         const {revision,plan}=body;
         const next=save(root,revision,plan);
@@ -111,6 +113,11 @@ function serve(root,{port=0,launch}={}) {
       if(req.method!=="GET")return send(405,"{}");
       if(url.pathname==="/api/project")return send(200,JSON.stringify(snapshot(root)));
       if(url.pathname==="/api/stage-run")return send(200,JSON.stringify(runs.publicJob(runs.load(root,url.searchParams.get("stage")||""))));
+      if(url.pathname==="/api/stage-log")return send(200,runs.logText(root,url.searchParams.get("stage")||"",url.searchParams.get("run")||""),"text/plain; charset=utf-8");
+      if(url.pathname==="/api/runtime"){
+        if(!runtimeStatus || Date.now()-Date.parse(runtimeStatus.checkedAt)>30000)runtimeStatus=require("./codex-runtime.cjs").preflight();
+        return send(200,JSON.stringify(runtimeStatus));
+      }
       if(url.pathname==="/api/handoff")return send(200,handoff(root,snapshot(root)),"text/plain; charset=utf-8");
       if(url.pathname==="/api/document"){
         const name=url.searchParams.get("path");

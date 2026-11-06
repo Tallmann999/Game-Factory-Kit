@@ -51,6 +51,7 @@ function targetHead(root,target) {
   return git(root,"rev-parse","HEAD");
 }
 function safeFile(folder,name) {
+  folder=path.resolve(folder);
   if(typeof name!=="string" || !name || /[:\\\x00-\x1f]/.test(name) || path.isAbsolute(name) ||
     name.split("/").some(s=>!s || s==="." || s===".." || s.toLowerCase()===".git")) throw Error("Недопустимый путь файла.");
   const file=path.join(folder,name);

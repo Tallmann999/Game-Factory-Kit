@@ -86,20 +86,68 @@ function stageDetails(n) {
   displayRun(n.id,projectData?.stageRuns?.[n.id]);
   savedStageDraft=formDraft();
 }
-let submitting=false, launchIntent=null;
+let submitting=false, launchIntent=null,runtimeStatus=null;
+const runActive=status=>["starting","running","stalled","cancelling"].includes(status);
+const runConnection=new Map();
+async function checkRuntime(){
+  const response=await fetch("/api/runtime",{cache:"no-store"});
+  if(!response.ok)throw Error("Не удалось проверить среду Codex.");
+  runtimeStatus=await response.json();
+  const stage=$("auditDialog").open?"@audit":$("detail").open?editing:null;
+  if(stage)displayRun(stage,projectData?.stageRuns?.[stage]);
+}
+function runtimeDetails(info,diagnostics){
+  const details=el("details"),summary=el("summary","Среда запуска Codex");details.append(summary);
+  if(diagnostics){
+    details.append(el("p","Пользователь: "+diagnostics.user+" · CLI: "+(diagnostics.version||"не проверен")),
+      el("p",(diagnostics.command||[]).join(" ")),el("p","Профиль: "+diagnostics.profile+" · "+diagnostics.auth),
+      el("p",diagnostics.available?"CLI и вход доступны. Ответ модели проверяется при выполнении.":diagnostics.reasons.join(" ")));
+  }
+  const check=el("button","Проверить среду");check.type="button";
+  check.onclick=async()=>{check.disabled=true;try{await checkRuntime();}catch(e){notice(e.message);}finally{check.disabled=false;}};
+  details.append(check);info.append(details);
+}
 function displayRun(stage,run){
   const isAudit=stage==="@audit", info=$(isAudit?"auditRunInfo":"stageRunInfo"),button=$(isAudit?"runAudit":"runStage");
   button.hidden=!connectedProject || !projectData?.stageRuns;
-  button.disabled=submitting || run?.status==="running" || (!isAudit && blockers(stage).length>0);
-  if(!isAudit){$("desktopStage").hidden=button.hidden || !projectData?.desktopChat;$("desktopStage").disabled=button.disabled;}
-  const labels={draft:"Ждёт отправки в Codex",running:"В работе",closed:"Чат отвязан",failed:"Ошибка запуска или выполнения",done:"Выполнено",partial:"Шаг выполнен",waiting:"Нужен ответ"};
+  const busy=submitting || runActive(run?.status) || (!isAudit && blockers(stage).length>0);
+  button.disabled=busy || runtimeStatus?.available===false;
+  const desktop=$(isAudit?"desktopAudit":"desktopStage");
+  desktop.hidden=button.hidden || !projectData?.desktopChat;desktop.disabled=busy;
+  const labels={draft:"Ждёт отправки в Codex",starting:"Запускается",running:"В работе",stalled:"Давно нет новых событий",cancelling:"Останавливается",cancelled:"Отменено",closed:"Чат отвязан",failed:"Ошибка запуска или выполнения",done:"Выполнено",partial:"Шаг выполнен",waiting:"Нужен ответ"};
   info.replaceChildren();
   if(!run){
     if(isAudit && projectData?.lastAudit)info.textContent="Последний аудит · "+new Date(projectData.lastAudit.date).toLocaleDateString("ru")+" · "+projectData.lastAudit.summary;
     if(!isAudit && connectedProject)info.textContent=projectData?.stageRuns?"При запуске задание сохранится и будет отправлено в чат этого этапа.":"Перезапустите сервер конструктора для запуска шагов.";
+    if(connectedProject)runtimeDetails(info,runtimeStatus);
     return;
   }
   info.append(el("strong",labels[run.status]||run.status),el("p",run.message));
+  if(run.mode!=="desktop"){
+    runtimeDetails(info,runtimeStatus||run.diagnostics);
+    if(runtimeStatus?.available===false)info.append(el("p",runtimeStatus.reasons.join(" ")));
+    if(run.startedAt)info.append(el("p","Начало: "+new Date(run.startedAt).toLocaleTimeString("ru")+" · Последнее событие: "+new Date(run.lastEventAt||run.startedAt).toLocaleTimeString("ru")+" · Лимит: "+Math.round(run.timeoutSeconds/60)+" мин."));
+    const log=el("a","Журнал задания ↗");log.href="/api/stage-log?"+new URLSearchParams({stage,run:run.id});log.target="_blank";log.rel="noopener";info.append(log);
+    if(run.stderr){const details=el("details"),pre=el("pre",run.stderr);details.append(el("summary","Сообщения CLI"),pre);info.append(details);}
+    if(runActive(run.status)){
+      info.append(el("p","Это фоновый запуск. Новые сообщения видны здесь; открытый раньше времени чат может показывать только часть истории. Полный итог будет доступен после завершения."));
+      const stop=el("button","Остановить задание");stop.type="button";
+      stop.onclick=async()=>{
+        stop.disabled=true;
+        try{
+          const response=await fetch("/api/stage-run/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({stageId:stage,requestId:run.id})});
+          const result=await response.json();if(!response.ok)throw Error(result.error);
+          projectData.stageRuns[stage]=result;displayRun(stage,result);notice(result.message);
+        }catch(e){notice(e.message);stop.disabled=false;}
+      };
+      info.append(stop);
+    }
+    if(run.status==="cancelled")info.append(el("p","Исполнитель остановлен. Можно запустить шаг в чате Codex. Созданные до остановки файлы сохранены; проверьте их перед повтором."));
+  }
+  const connection=runConnection.get(stage),connectionLine=el("p");connectionLine.dataset.runConnection="true";
+  if(connection)connectionLine.textContent=connection.error?"Связь с сервером потеряна. Последнее обновление: "+connection.at+". "+connection.error:"Обновлено: "+connection.at;
+  info.append(connectionLine);
+  if(run.opening)info.append(el("p",run.opening.message));
   if(run.status==="draft" && run.draftUrl?.startsWith("codex://new?")){
     const link=el("a","Открыть подготовленный чат ↗");link.href=run.draftUrl;info.append(link);
     const fallback=el("details"),summary=el("summary","Если браузер не открыл Codex");
@@ -109,7 +157,10 @@ function displayRun(stage,run){
     fallback.append(summary,el("p","Откройте новый чат в проекте "+draft.get("path")+", скопируйте и отправьте это задание."),field);
     info.append(fallback);
   }
-  if(run.threadId){const link=el("a","Открыть чат Codex ↗");link.href="codex://threads/"+encodeURIComponent(run.threadId);info.append(link);}
+  if(run.threadId){
+    const link=el("a","Открыть чат Codex ↗");link.href="codex://threads/"+encodeURIComponent(run.threadId);info.append(link);
+    const fallback=el("details");fallback.append(el("summary","Если чат не открылся"),el("p","Браузер может блокировать переход в приложение. Откройте Codex вручную. ID чата: "+run.threadId+". Журнал выше остаётся доступен; наличие ID ещё не подтверждает, что чат виден в текущем профиле Codex."));info.append(fallback);
+  }
   if(run.mode==="desktop" && run.status==="running"){
     const detach=el("button","Отвязать чат от карточки");detach.type="button";
     detach.onclick=async()=>{
@@ -148,15 +199,22 @@ async function launchStep(next,stage,mode="auto"){
 }
 async function pollRun(){
   const stage=$("auditDialog").open?"@audit":$("detail").open?editing:null;
-  if(!stage || submitting || !["running","draft"].includes(projectData?.stageRuns?.[stage]?.status))return;
+  if(!stage || submitting || !["starting","running","stalled","cancelling","draft"].includes(projectData?.stageRuns?.[stage]?.status))return;
   try{
     const response=await fetch("/api/stage-run?stage="+encodeURIComponent(stage),{cache:"no-store"});
-    if(!response.ok)return;
+    if(!response.ok)throw Error("Сервер вернул "+response.status);
     const run=await response.json();
-    if(!run || JSON.stringify(run)===JSON.stringify(projectData.stageRuns[stage]))return;
+    runConnection.set(stage,{at:new Date().toLocaleTimeString("ru"),error:""});
+    if(!run)return;
+    const same=JSON.stringify(run)===JSON.stringify(projectData.stageRuns[stage]);
+    if(same){
+      const line=$(stage==="@audit"?"auditRunInfo":"stageRunInfo").querySelector("[data-run-connection]");
+      if(line)line.textContent="Обновлено: "+runConnection.get(stage).at;
+      return;
+    }
     projectData.stageRuns[stage]=run;
     if(stage===($("auditDialog").open?"@audit":$("detail").open?editing:null))displayRun(stage,run);
-    if(["draft","running"].includes(run.status))return;
+    if(same || run.status==="draft" || runActive(run.status))return;
     if(stage==="@audit"){await refreshProject(true);return;}
     if(!$("detail").open || stage!==editing)return;
     if(formDraft()!==savedStageDraft){notice("Шаг завершён. Ваши правки в карточке сохранены до её закрытия.");return;}
@@ -165,13 +223,18 @@ async function pollRun(){
     projectData=data;projectRevision=data.revision;plan=addModeGate(data.plan);render();
     const n=nodeById(stage);
     if(n){form.elements.report.value=n.report||"";stageDetails(n);}
-  }catch{/* The project's polling resumes when the server is available. */}
+  }catch(e){
+    runConnection.set(stage,{at:runConnection.get(stage)?.at||"нет успешного обновления",error:e.message});
+    if(stage===($("auditDialog").open?"@audit":$("detail").open?editing:null))displayRun(stage,projectData.stageRuns[stage]);
+  }
 }
 function setupProjectView() {
   $("auditButton").hidden=!connectedProject;
   $("auditButton").onclick=()=>{displayRun("@audit",projectData?.stageRuns?.["@audit"]);$("auditError").textContent="";$("auditDialog").showModal();};
   $("runAudit").onclick=()=>launchStep(plan,"@audit");
+  $("desktopAudit").onclick=()=>launchStep(plan,"@audit","desktop");
   if(connectedProject){
+    checkRuntime().catch(e=>notice(e.message));
     setInterval(pollRun,2000);
     $("detail").addEventListener("close",()=>{if(projectData && !writeCount && !submitting)refreshProject(true);});
   }

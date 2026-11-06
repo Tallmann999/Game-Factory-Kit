@@ -43,6 +43,12 @@ test("platform choice routes build and QA without leaking skills between engines
   assert.doesNotMatch(briefing(p),/Подключить скилл: (phaser-|playwright|game-mobile)/);
   const restored=JSON.parse(JSON.stringify(p));
   checkDiagram(restored);assert.equal(briefing(restored),briefing(p));
+  choosePlatform(p,"Roblox","Компьютер и мобильные","3D");
+  assert.ok(extraSkills(build,p).includes("game-roblox-ui"));
+  assert.ok(extraSkills(qa,p).includes("game-roblox-ui"));
+  build.skills.push("game-roblox-ui");
+  choosePlatform(p,"HTML / Web","Компьютер","2D");
+  assert.ok(!extraSkills(build,p).includes("game-roblox-ui"));
 });
 
 test("a stage waits for consent and passes its accepted result to the next agent", async t=>{

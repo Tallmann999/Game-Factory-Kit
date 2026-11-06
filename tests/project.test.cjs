@@ -65,7 +65,7 @@ test("launch saves only the requested step, deduplicates clicks and publishes a 
     assert.equal(dir,root);assert.match(job.prompt,/Сравнить две игры/);assert.match(job.prompt,/idea\.md/);
     started(thread);
     assert.equal(opened,undefined);
-    assert.equal(snapshot(root).stageRuns.research.threadId,"");
+    assert.equal(snapshot(root).stageRuns.research.threadId,thread);
     fs.writeFileSync(path.join(root,"research.md"),"Факты и выводы.");
     return {status:"partial",progress:60,summary:"Источники собраны.",remaining:"Проверить гипотезу",documents:["research.md"]};
   },id=>{assert.equal(snapshot(root).stageRuns.research.status,"partial");opened=id;});

@@ -63,7 +63,7 @@ async function finish(root,stage,id,thread) {
     if(fs.statSync(output).size>128000)throw Error("Слишком большой результат карточки.");
     const result=JSON.parse(fs.readFileSync(output,"utf8").replace(/^\uFEFF/,""));
     if(job.status==="failed"){job.status="running";runs.store(file,job);}
-    await runs.perform(root,stage,id,async()=>result);
+    await runs.perform(root,stage,id,async()=>result,undefined,true);
     const saved=runs.load(root,stage);
     if(saved.status==="failed")throw Error(saved.message);
     return "Результат принят карточкой. "+saved.message;

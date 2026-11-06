@@ -4,6 +4,7 @@
 
 | Папки | Источник и снимок | Условия | Изменения в наборе |
 |---|---|---|---|
+| `game-roblox-ui` | UI_STYLES v0.9, UI_SPEC_TEMPLATE v0.6, UI_GENERATION_GUIDE_DRAFT v0.10 — материалы, предоставленные автором проекта 6 ноября 2026 для включения в набор | Включены по поручению автора; оболочка скилла и скрипт подготовки — MIT набора | Сохранены правила и версии; ссылки на отсутствующий личный файл замечаний заменены на включённый список UI-01–UI-11 |
 | 14 `game-*` | Оригинальные рабочие инструкции Game Studio Kit 0.1.0 | MIT, ©2026 Game Studio Kit contributors | Новые файлы |
 | 22 `blender-*` | [EL4CTEO/blender-skills](https://github.com/EL4CTEO/blender-skills/tree/71d031dab8bc6729504d11a78cbe91945401045f), commit `71d031dab8bc6729504d11a78cbe91945401045f` | MIT, ©2026 EL4CTEO | Только skills из закреплённого архива; добавлена копия upstream LICENSE в каждую папку. В blender-core поле compatibility перемещено в metadata для совместимости с локальным skill-creator validator |
 | 7 `phaser-*` | [phaserjs/phaser/skills](https://github.com/phaserjs/phaser/tree/02d8931b626d9764c133cbb3fbf99966c03c757c/skills), локальный лицензированный snapshot с записанным ref `02d8931b626d9764c133cbb3fbf99966c03c757c` | MIT, ©2026 Richard Davey / Phaser Studio Inc. | Сохранены локальные префиксы `phaser-`; LICENSE.md в каждой папке. Это snapshot, не новое скачивание всего движка |

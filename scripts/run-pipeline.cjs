@@ -9,6 +9,14 @@ const {checkDiagram,verifyRoute,policies,statuses,extraSkills,engines,devices,di
   platformLabel,platformQuestion,choosePlatform,routedStages,selectMode} = require("../docs/pipeline/model.js");
 
 function codexCommand() {
+  const configured=process.env.GFK_CODEX_PATH;
+  if(configured){
+    if(!path.isAbsolute(configured) || !fs.existsSync(configured) || !fs.statSync(configured).isFile())
+      throw Error("GFK_CODEX_PATH должен указывать на существующий абсолютный путь Codex CLI.");
+    if(/\.(?:c?js|mjs)$/i.test(configured))return [process.execPath,configured];
+    if(process.platform==="win32" && !/\.exe$/i.test(configured))throw Error("Для GFK_CODEX_PATH укажите codex.exe или codex.js, не .cmd/.ps1.");
+    return [configured];
+  }
   if (process.platform !== "win32") return ["codex"];
   const dirs = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
   if (process.env.APPDATA) dirs.push(path.join(process.env.APPDATA,"npm"));

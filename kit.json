@@ -215,6 +215,12 @@
       "source_ref": "0.1.0"
     },
     {
+      "name": "game-roblox-ui",
+      "origin": "User-provided Roblox UI modules, adapted for Game Factory Kit",
+      "license": "MIT",
+      "source_ref": "2026-11-06"
+    },
+    {
       "name": "game-ui-design",
       "origin": "Original Game Studio Kit workflow",
       "license": "MIT",
@@ -370,6 +376,7 @@
       "game-mvp",
       "game-qa",
       "game-roblox",
+      "game-roblox-ui",
       "game-art-director",
       "game-ui-design",
       "game-audio",
@@ -437,6 +444,7 @@
       "game-platform-port",
       "game-qa",
       "game-roblox",
+      "game-roblox-ui",
       "game-ui-design",
       "game-web-builder",
       "phaser-animations",
