@@ -85,9 +85,10 @@ function acceptedBuild(project,plan) {
 }
 class Board {
   constructor(root,plan,check,{worker=codexWorker}={}) {
-    this.root=fs.realpathSync(root);
-    if(fs.realpathSync(git(root,"rev-parse","--show-toplevel"))!==this.root) throw Error("Укажите корень Git-проекта игры.");
-    const kit=fs.realpathSync(path.join(__dirname,".."));
+    this.root=fs.realpathSync.native(root);
+    const gitRoot=fs.realpathSync.native(git(root,"rev-parse","--show-toplevel"));
+    if(path.relative(this.root,gitRoot)!=="") throw Error("Укажите корень Git-проекта игры.");
+    const kit=fs.realpathSync.native(path.join(__dirname,".."));
     if(this.root===kit || this.root.startsWith(kit+path.sep)) throw Error("Выберите игру за пределами набора.");
     targetHead(root,plan.gitTarget);
     this.target={...plan.gitTarget};
