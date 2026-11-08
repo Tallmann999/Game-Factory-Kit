@@ -5,7 +5,7 @@ const path = require("node:path");
 const {randomUUID} = require("node:crypto");
 const {spawnSync} = require("node:child_process");
 const {createInterface} = require("node:readline/promises");
-const {checkDiagram,verifyRoute,policies,statuses,extraSkills,engines,devices,dimensions,
+const {checkDiagram,verifyRoute,policies,statuses,extraSkills,assetOffer,engines,devices,dimensions,
   platformLabel,platformQuestion,choosePlatform,routedStages,selectMode} = require("../docs/pipeline/model.js");
 
 function codexCommand() {
@@ -37,6 +37,7 @@ function stagePrompt(plan,node,deps) {
     "Выполни один этап Game Factory Kit в текущей папке игры. Сначала прочитай её существующие документы и состояние.",
     "Этап: "+node.title, "Платформа: "+platformLabel(plan), "Исполнитель / скилл: "+node.agent,
     ...extraSkills(node,plan).map(name=>"Подключить скилл: "+name),
+    ...assetOffer(plan,node),
     "Если указанный скилл недоступен, сообщи об этом. Используй разрешённые инструменты проекта.",
     "Задача: "+node.description, "Критерий приёмки: "+node.result, "Правило вопросов: "+policies[node.policy],
     "Документы этапа: "+(node.documents||[]).join(", "), "Следующий шаг: "+(node.remaining||node.result),

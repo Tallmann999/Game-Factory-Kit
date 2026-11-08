@@ -77,6 +77,7 @@ function routeSkills(plan,stage) {
   }
 }
 function matchesPlatform(plan,stage,name) {
+  if(name==="game-3d-props")return !plan?.platform || (plan.platform.dimension==="3D" && ["HTML / Web","Unity","Roblox"].includes(plan.engine));
   if(["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"].includes(name))return plan?.engine==="Roblox";
   if (!plan?.platform || !routedStages.includes(stage)) return true;
   if (name.startsWith("phaser-")) return plan.engine==="HTML / Web" && plan.platform.dimension==="2D";
@@ -183,6 +184,11 @@ function extraSkills(node,plan) {
   skills.delete(node.agent);
   return Array.from(skills).filter(name=>matchesPlatform(plan,node.id,name));
 }
+function assetOffer(plan,node) {
+  if(!node || !matchesPlatform(plan,node.id,"game-3d-props"))return [];
+  if(node.id!=="build" && ![node.agent,...(node.skills||[])].some(name=>["game-asset-pipeline","game-3d-props"].includes(name)))return [];
+  return ["Если автор просит сделать простые формы или найти ассеты для 3D-предмета, сначала предложи Sand3D по размерам, Hunyuan3D по изображению и исходный способ (примитивы или поиск). Для генерации нужен явный выбор автора для этого заказа. Пока выбора нет, задай вопрос и дождись ответа. При выборе генератора используй game-3d-props. Запуск этапа и отметка скилла сами по себе не подтверждают генерацию."];
+}
 function briefing(plan) {
   const order = verifyRoute(plan);
   if (!plan.platform) throw new Error(platformQuestion+" Зафиксируйте выбор в конструкторе.");
@@ -194,12 +200,13 @@ function briefing(plan) {
     const deps = plan.edges.filter(e=>e.to===n.id).map(e=>order.find(a=>a.id===e.from));
     lines.push("## "+(index+1)+". "+n.title+" ["+n.id+"]", "Исполнитель: "+n.agent, "Входы: "+(deps.map(d=>d.title+" ["+d.id+"]").join(", ")||"идея пользователя"),
       ...extraSkills(n,plan).map(name=>"Подключить скилл: "+name),
+      ...assetOffer(plan,n),
       "Статус: "+statuses[n.status], "Режим: "+policies[n.policy], "Задача: "+n.description, "Приёмка: "+n.result,
       "Фактический результат: "+(n.report||"ещё не записан"), "");
   }
   return lines.join("\n");
 }
 if (typeof module!=="undefined" && module.exports) {
-  module.exports={ordered,checkDiagram,verifyRoute,policies,statuses,initialPlan,briefing,extraSkills,
+  module.exports={ordered,checkDiagram,verifyRoute,policies,statuses,initialPlan,briefing,extraSkills,assetOffer,
     engines,devices,dimensions,platformLabel,platformQuestion,choosePlatform,routeSkills,matchesPlatform,routedStages,selectMode,workModes};
 }

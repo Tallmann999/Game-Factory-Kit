@@ -1,0 +1,6 @@
+interface:
+  display_name: "3D-предметы для игры"
+  short_description: "Создание предметов через выбранный Sand3D или Hunyuan3D"
+  default_prompt: "Используй $game-3d-props для создания выбранного игрового предмета."
+policy:
+  allow_implicit_invocation: false

@@ -8,7 +8,7 @@ const {safeFile}=require("./robocop-board.cjs");
 const {audit,docPath}=require("./project-audit.cjs");
 const {codexCommand}=require("./run-pipeline.cjs");
 const runtime=require("./codex-runtime.cjs");
-const {checkDiagram,ordered,platformLabel,extraSkills,policies}=require("../docs/pipeline/model.js");
+const {checkDiagram,ordered,platformLabel,extraSkills,assetOffer,policies}=require("../docs/pipeline/model.js");
 
 const uuid=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const directory=".game-factory/stage-runs";
@@ -104,6 +104,7 @@ function makePrompt(plan,node,analysis,task) {
     "Описание этапа: "+node.description,"Критерий завершения ВСЕГО этапа: "+node.result,
     "Скиллы: "+[node.agent,...extraSkills(node,plan)].join(", ")+". Прочитай инструкции нужного скилла в проекте, в установленных навыках или в клоне из .game-factory/kit-location.txt.",
     "Платформа: "+platformLabel(plan)+". Правило вопросов: "+policies[node.policy]+". Нажатие кнопки подтверждает старт этого шага.",
+    ...assetOffer(plan,node),
     "Исходные документы: "+([...docs].join("\n")||"найди в проекте"),"Входы: "+inputs.map(n=>n.title+" — "+(n.report||n.result)).join("\n"),
     "Текущий результат: "+(node.report||"пока нет")+". Прогресс этапа: "+analysis.stages[node.id].percent+"%.",
     node.id==="research"?"Сравни реальные игры, приложи ссылки и отдели наблюдения от проверяемой гипотезы. Сохрани выводы и предложения автору в документе исследования (например, docs/game/research.md). Авторский концепт меняется отдельным поручением.":"",

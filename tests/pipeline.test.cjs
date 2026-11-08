@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const {main} = require("../scripts/run-pipeline.cjs");
-const {initialPlan,briefing,choosePlatform,extraSkills,checkDiagram} = require("../docs/pipeline/model.js");
+const {initialPlan,briefing,choosePlatform,extraSkills,checkDiagram,assetOffer,matchesPlatform} = require("../docs/pipeline/model.js");
 const {composition} = require("../docs/pipeline/skills.js");
 
 test("stage tables cover the shipped manifest and follow the assigned lead",()=>{
@@ -15,6 +15,29 @@ test("stage tables cover the shipped manifest and follow the assigned lead",()=>
   build.agent="unity-mcp-orchestrator";
   assert.deepEqual(composition(build).filter(skill=>skill.lead).map(skill=>skill.name),[build.agent]);
   assert.equal(composition(build).filter(skill=>skill.name===build.agent).length,1);
+});
+
+test("3D prop creation is optional and a platform switch cannot enable a saved selection",()=>{
+  const plan=initialPlan();
+  const build=plan.nodes.find(n=>n.id==="build");
+  const qa=plan.nodes.find(n=>n.id==="qa");
+  const props="game-3d-props";
+  for(const engine of ["Roblox","Unity","HTML / Web"]){
+    choosePlatform(plan,engine,"Компьютер","3D");
+    assert.ok(matchesPlatform(plan,build.id,props));
+    assert.ok(!extraSkills(build,plan).includes(props));
+    assert.ok(assetOffer(plan,build).length);
+    assert.deepEqual(assetOffer(plan,qa),[]);
+  }
+  build.skills=[props];
+  assert.ok(extraSkills(build,plan).includes(props));
+  assert.ok(assetOffer(plan,build).length);
+  for(const [engine,dimension] of [["HTML / Web","2D"],["Godot","3D"]]){
+    choosePlatform(plan,engine,"Компьютер",dimension);
+    assert.ok(!matchesPlatform(plan,build.id,props));
+    assert.ok(!extraSkills(build,plan).includes(props));
+    assert.deepEqual(assetOffer(plan,build),[]);
+  }
 });
 
 test("disconnected and cyclic plans cannot be dispatched",()=>{

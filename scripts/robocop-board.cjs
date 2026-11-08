@@ -6,7 +6,7 @@ const {randomUUID,createHash} = require("node:crypto");
 const {spawn} = require("node:child_process");
 const {git,requireTarget,boardDirectory} = require("./project-git.cjs");
 const {codexCommand} = require("./run-pipeline.cjs");
-const {checkDiagram,verifyRoute,platformLabel,extraSkills} = require("../docs/pipeline/model.js");
+const {checkDiagram,verifyRoute,platformLabel,extraSkills,assetOffer} = require("../docs/pipeline/model.js");
 
 const {parseIndex,verifiedIndex}=require("./feature-index.cjs");
 function sourcePath(root,plan,stage,defaults) {
@@ -157,6 +157,7 @@ class Board {
       "Назначение принятой фичи: "+this.target.remote+"/"+this.target.branch+".",platformLabel(this.plan),build?"Навыки по задаче: "+[build.agent,...extraSkills(build,this.plan)].join(", "):"",
       "Прочитай "+this.concept+", "+this.index+" и относящиеся к фиче документы. Авторские механики и пиллары имеют приоритет.",
       c.brief,"Принятые решения: "+c.decisions.join("\n"),"Продолжение: "+c.handoff,
+      ...assetOffer(this.plan,build),
       "Проверь git diff и уже сделанное. Исходные концепт и Feature Index служат входами. Не меняй ветки, историю Git, не коммить и не публикуй. Верни явный список изменённых файлов фичи без .robocop-handoff.md.",
       "Перед реализацией оцени, достаточно ли контекста на этот F-ID, нужные документы, проверку и summary. Повтори оценку после проверяемых подшагов. При достаточном запасе продолжай текущую сессию. Если счётчик недоступен, оцени объём приблизительно и не выдумывай остаток токенов.",
       "Сначала прочитай .robocop-handoff.md, если он существует, и сверь его с переданным продолжением и текущими файлами. Пиши актуальную сводку после существенных шагов: F-ID, сделанное, проверка, ограничения и первый незавершённый шаг.",
