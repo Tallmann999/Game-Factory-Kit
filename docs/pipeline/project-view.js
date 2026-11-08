@@ -9,6 +9,12 @@ function stageState(n) {
 function blockers(id) {
   return plan.edges.filter(e=>e.to===id).map(e=>nodeById(e.from)).filter(n=>stageState(n).status!=="done");
 }
+function nextProjectStage() {
+  return ordered(plan).find(n=>stageState(n).status!=="done" && !blockers(n.id).length);
+}
+function openProjectStage(stage) {
+  if(stage){centerNode(stage);openEditor(stage);}
+}
 async function projectApi(method="GET",body) {
   const response=await fetch("/api/project",{method,headers:body?{"Content-Type":"application/json"}:{},body,cache:"no-store"});
   const result=await response.json();
@@ -34,7 +40,8 @@ async function refreshProject(force=false) {
       if(current)centerNode(current);
       window.dispatchEvent(new Event("gfk-project-ready"));
       const requested=nodeById(new URLSearchParams(location.search).get("stage"));
-      if(requested){centerNode(requested);openEditor(requested);}
+      const guided=new URLSearchParams(location.search).get("guided")==="1";
+      openProjectStage(requested || (guided && nextProjectStage()));
     }
   } catch(e){$("persist").textContent="Не удалось прочитать проект";notice(e.message);}
 }
@@ -56,7 +63,9 @@ function releaseHeader() {
   $("featureCount").textContent=f.length?"Фичи · "+projectData.doneFeatures+" из "+f.length+" · осталось "+(f.length-projectData.doneFeatures):"По этапам пайплайна";
   $("gitButton").textContent=plan.gitTarget?"Ветка · "+plan.gitTarget.remote+"/"+plan.gitTarget.branch:"Ветка для фич";
   if(projectData){
-    const next=ordered(plan).find(n=>stageState(n).status!=="done" && !blockers(n.id).length);
+    const next=nextProjectStage();
+    $("openNextStage").hidden=!next;
+    if(next)$("openNextStage").textContent="Открыть этап · "+next.title;
     const action=projectData.nextAction || (next?next.title+" · "+(stageState(next).remaining[0]||next.result):"");
     $("projectNext").hidden=!action;$("projectNext").textContent=action?"Следующий шаг · "+action.split(". ")[0]:"";
   }
@@ -229,6 +238,7 @@ async function pollRun(){
   }
 }
 function setupProjectView() {
+  $("openNextStage").onclick=()=>openProjectStage(nextProjectStage());
   $("auditButton").hidden=!connectedProject;
   $("auditButton").onclick=()=>{displayRun("@audit",projectData?.stageRuns?.["@audit"]);$("auditError").textContent="";$("auditDialog").showModal();};
   $("runAudit").onclick=()=>launchStep(plan,"@audit");

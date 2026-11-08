@@ -68,16 +68,16 @@ function routeSkills(plan,stage) {
   const specialist=["Unity","Roblox"].includes(plan.engine) ? [engineSkill] : [];
   switch(stage) {
     case "board": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui"]:[]),...(three?["blender-lighting-lookdev"]:[])];
-    case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui"]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
+    case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui","scenario-roblox-expert"]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
       ...(web && !three?phaserSkills:[]),...(three?["blender-core"]:[]),...(mobile?["game-mobile"]:[])];
-    case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-ui"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
+    case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(three?["blender-asset-qa","blender-game-optimization"]:[])];
     case "finish": return ["game-qa",...specialist,...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(three?["blender-export-pipelines"]:[])];
   }
 }
 function matchesPlatform(plan,stage,name) {
-  if(name==="game-roblox-ui")return plan?.engine==="Roblox";
+  if(["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"].includes(name))return plan?.engine==="Roblox";
   if (!plan?.platform || !routedStages.includes(stage)) return true;
   if (name.startsWith("phaser-")) return plan.engine==="HTML / Web" && plan.platform.dimension==="2D";
   if (name==="playwright") return plan.engine==="HTML / Web";

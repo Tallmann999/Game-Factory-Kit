@@ -281,6 +281,18 @@
       "source_ref": "local licensed snapshot, adapted; upstream commit not recorded"
     },
     {
+      "name": "scenario-roblox-expert",
+      "origin": "https://github.com/scenario-labs/skills",
+      "license": "MIT",
+      "source_ref": "b96506d77c8595a4fe9c66eddb0bf9b5953a1d45"
+    },
+    {
+      "name": "scenario-roblox-performance",
+      "origin": "https://github.com/scenario-labs/skills",
+      "license": "MIT",
+      "source_ref": "b96506d77c8595a4fe9c66eddb0bf9b5953a1d45"
+    },
+    {
       "name": "unity-mcp-orchestrator",
       "origin": "https://github.com/CoplayDev/unity-mcp",
       "license": "MIT",
@@ -382,7 +394,9 @@
       "game-audio",
       "game-asset-pipeline",
       "game-marketing",
-      "game-platform-port"
+      "game-platform-port",
+      "scenario-roblox-expert",
+      "scenario-roblox-performance"
     ],
     "mobile": [
       "game-creator",
@@ -435,13 +449,13 @@
       "game-asset-pipeline",
       "game-audio",
       "game-creator",
-      "game-project-audit",
       "game-design",
       "game-market-research",
       "game-marketing",
       "game-mobile",
       "game-mvp",
       "game-platform-port",
+      "game-project-audit",
       "game-qa",
       "game-roblox",
       "game-roblox-ui",
@@ -455,6 +469,8 @@
       "phaser-scale-and-responsive",
       "phaser-scenes",
       "playwright",
+      "scenario-roblox-expert",
+      "scenario-roblox-performance",
       "unity-mcp-orchestrator"
     ]
   }

@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import uuid
@@ -386,6 +387,9 @@ def parser() -> argparse.ArgumentParser:
     install.add_argument("--profile", default="core")
     install.add_argument("--dry-run", action="store_true")
     install.add_argument("--backup-and-replace", action="store_true")
+    start = commands.add_parser("start", help="Prepare a game and serve its first available stage")
+    start.add_argument("--project", required=True)
+    start.add_argument("--profile", default="full", help="Skill profile to install (default: full)")
     init = commands.add_parser("init", help="Create design documents; preserve existing files")
     init.add_argument("--project", required=True)
     check = commands.add_parser("doctor", help="Report tools on PATH; MCP remains UNKNOWN")
@@ -405,10 +409,17 @@ def main(argv: list[str] | None = None) -> int:
             kit = Kit(Path(__file__).resolve().parents[1])
             if args.command == "list":
                 report = kit.list_skills(args.profile)
-            elif args.command == "install":
+            elif args.command in {"install", "start"}:
+                if args.command == "start":
+                    node = shutil.which("node")
+                    if not node or subprocess.run(
+                        [node, "-e", "process.exit(Number(process.versions.node.split('.')[0]) >= 20 ? 0 : 1)"]
+                    ).returncode:
+                        raise KitError("Для конструктора нужен Node.js 20+ в PATH.")
                 dest = checked_path(args.project) / ".agents" / "skills" if args.project else args.dest
-                report = kit.install(dest, args.profile, args.dry_run, args.backup_and_replace)
-                if args.project and not args.dry_run:
+                dry_run = getattr(args, "dry_run", False)
+                report = kit.install(dest, args.profile, dry_run, getattr(args, "backup_and_replace", False))
+                if args.project and not dry_run:
                     location = checked_path(checked_path(args.project) / ".game-factory" / "kit-location.txt")
                     location.parent.mkdir(parents=True, exist_ok=True)
                     try:
@@ -416,6 +427,13 @@ def main(argv: list[str] | None = None) -> int:
                     except ValueError:  # Separate Windows volumes
                         kit_location = str(kit.root)
                     location.write_text(kit_location + "\n", encoding="utf-8")
+                if args.command == "start":
+                    project = checked_path(args.project)
+                    kit.init_project(project)
+                    try:
+                        return subprocess.call([node, str(kit.root / "scripts/project.cjs"), str(project), "--guided"])
+                    except KeyboardInterrupt:
+                        return 130
             elif args.command == "init":
                 report = kit.init_project(args.project)
             elif args.command == "validate":

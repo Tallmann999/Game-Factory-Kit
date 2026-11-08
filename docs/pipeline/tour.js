@@ -90,6 +90,7 @@
   window.addEventListener("hashchange",followLink);
   function enterTour() {
     if(followLink())return;
+    if(connectedProject && new URLSearchParams(location.search).get("guided")==="1")return;
     let saved=null;
     try {saved=localStorage.getItem(key);} catch {}
     if(connectedProject && saved===null && Object.values(projectData.stages).some(s=>s.percent>0))return;

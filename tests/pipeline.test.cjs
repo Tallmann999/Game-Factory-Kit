@@ -46,9 +46,12 @@ test("platform choice routes build and QA without leaking skills between engines
   choosePlatform(p,"Roblox","Компьютер и мобильные","3D");
   assert.ok(extraSkills(build,p).includes("game-roblox-ui"));
   assert.ok(extraSkills(qa,p).includes("game-roblox-ui"));
-  build.skills.push("game-roblox-ui");
+  assert.ok(extraSkills(build,p).includes("scenario-roblox-expert"));
+  assert.ok(extraSkills(qa,p).includes("scenario-roblox-performance"));
+  build.skills.push("game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance");
   choosePlatform(p,"HTML / Web","Компьютер","2D");
   assert.ok(!extraSkills(build,p).includes("game-roblox-ui"));
+  assert.ok(!extraSkills(build,p).some(name=>name.startsWith("scenario-roblox-")));
 });
 
 test("a stage waits for consent and passes its accepted result to the next agent", async t=>{

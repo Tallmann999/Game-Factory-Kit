@@ -83,7 +83,7 @@ function handoff(root,data) {
   sections.push("Продолжи с первого доступного этапа. Перед изменениями сверь файлы и Git. Сохрани решения и результаты в карточке проекта.");
   return sections.join("\n\n");
 }
-function serve(root,{port=0,launch}={}) {
+function serve(root,{port=0,launch,guided=false}={}) {
   initialize(root);
   const assets=new Set(["index.html","model.js","app.js","skills.js","tour.js","tour.css","style.css","progress.css","project-view.js"]);
   const types={".html":"text/html",".js":"text/javascript",".css":"text/css",".png":"image/png",".webp":"image/webp",".jpg":"image/jpeg",".jpeg":"image/jpeg"};
@@ -135,7 +135,7 @@ function serve(root,{port=0,launch}={}) {
   });
   server.listen(port,"127.0.0.1",()=>{
     origin="http://127.0.0.1:"+server.address().port;
-    console.log("Конструктор "+path.basename(root)+": "+origin+"/project/");
+    console.log("Конструктор "+path.basename(root)+": "+origin+"/project/"+(guided?"?guided=1":""));
   });
   return server;
 }
@@ -144,6 +144,7 @@ function main(args) {
   const [folder,mode,id,value,doc,...remaining]=args,root=gameRoot(folder);
   initialize(root);
   if(!mode)return serve(root);
+  if(mode==="--guided")return serve(root,{guided:true});
   if(mode==="--port" && /^\d+$/.test(id) && Number(id)>0 && Number(id)<=65535)return serve(root,{port:Number(id)});
   if(mode==="--import-audit"){
     const result=JSON.parse(fs.readFileSync(id,"utf8").replace(/^\uFEFF/,""));
