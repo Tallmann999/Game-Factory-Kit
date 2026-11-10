@@ -1,0 +1,8 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./lab.css"><script type="importmap">{"imports":{"three":"./node_modules/three/build/three.webgpu.js","three/webgpu":"./node_modules/three/build/three.webgpu.js","three/tsl":"./node_modules/three/build/three.tsl.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script><title>Сравнение GLB</title></head><body>
+<header><h1>Сравнение моделей</h1><span id="backend"></span></header>
+<section><label>A · файлы LOD <input id="filesA" type="file" accept=".glb" multiple></label><label>B · файлы LOD <input id="filesB" type="file" accept=".glb" multiple></label></section>
+<section><label>Вариант <select id="variant"><option>A</option><option>B</option></select></label><label>LOD <select id="level"></select></label>
+<label>Камера <select id="pose"><option value="hero">Обзор</option><option value="side">Профиль</option><option value="rear">Корма</option></select></label>
+<label>Материал стекла <select id="glass"></select></label><label><input id="isolate" type="checkbox"> Только стекло</label>
+<label><input id="bloom" type="checkbox"> Свечение</label><label><input id="effects" type="checkbox" checked> Меши эффектов</label></section>
+<canvas></canvas><output role="status" id="status">Выберите GLB варианта A. Для каждого варианта можно выбрать несколько уровней.</output><script type="module" src="./compare.js"></script></body></html>

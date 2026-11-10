@@ -303,6 +303,24 @@
       "origin": "https://github.com/CoplayDev/unity-mcp",
       "license": "MIT",
       "source_ref": "81542a7e86292b5c4c21b1782c5af23b567f45ce"
+    },
+    {
+      "name": "web-3d-asset-pipeline",
+      "origin": "Original Game Factory Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.2.0"
+    },
+    {
+      "name": "three-webgl-game",
+      "origin": "Original Game Factory Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.2.0"
+    },
+    {
+      "name": "game-playtest",
+      "origin": "Original Game Factory Kit workflow",
+      "license": "MIT",
+      "source_ref": "0.2.0"
     }
   ],
   "profiles": {
@@ -335,7 +353,10 @@
       "phaser-physics-matter",
       "phaser-scale-and-responsive",
       "phaser-scenes",
-      "playwright"
+      "playwright",
+      "web-3d-asset-pipeline",
+      "three-webgl-game",
+      "game-playtest"
     ],
     "art": [
       "game-creator",
@@ -431,7 +452,10 @@
       "phaser-scenes",
       "playwright",
       "game-mobile",
-      "game-platform-port"
+      "game-platform-port",
+      "web-3d-asset-pipeline",
+      "three-webgl-game",
+      "game-playtest"
     ],
     "full": [
       "blender-addon-development",
@@ -483,7 +507,10 @@
       "playwright",
       "scenario-roblox-expert",
       "scenario-roblox-performance",
-      "unity-mcp-orchestrator"
+      "unity-mcp-orchestrator",
+      "web-3d-asset-pipeline",
+      "three-webgl-game",
+      "game-playtest"
     ]
   }
 }
