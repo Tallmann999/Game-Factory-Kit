@@ -3,11 +3,12 @@ const connectedProject=location.pathname==="/project/" && /^https?:$/.test(locat
 let projectData=null, projectRevision="",writeCount=0,editSequence=0,conflict=false;
 let writeQueue=Promise.resolve();
 function stageState(n) {
+  if(!projectData && ((n.id==="platform" && !plan.platform) || (n.id==="work-mode" && !plan.workMode)))return {status:"planned",percent:0,documents:n.documents||[],remaining:[n.result]};
   return projectData?.stages[n.id] || {status:n.status,percent:n.status==="done"?100:n.status==="planned"?0:n.progress||0,
     documents:n.documents||[],remaining:n.status==="done"?[]:[n.remaining||n.result]};
 }
 function blockers(id) {
-  return plan.edges.filter(e=>e.to===id).map(e=>nodeById(e.from)).filter(n=>stageState(n).status!=="done");
+  return unfinishedInputs(plan,id,n=>stageState(n).status);
 }
 function nextProjectStage() {
   return ordered(plan).find(n=>stageState(n).status!=="done" && !blockers(n.id).length);
@@ -30,7 +31,7 @@ async function refreshProject(force=false) {
     const firstLoad=!projectData;
     const changedData=!projectData || projectRevision!==data.revision || JSON.stringify(data.stages)!==JSON.stringify(projectData.stages) || JSON.stringify(data.features)!==JSON.stringify(projectData.features) || data.nextAction!==projectData.nextAction || JSON.stringify(data.stageRuns)!==JSON.stringify(projectData.stageRuns);
     projectData=data;projectRevision=data.revision;
-    if(changedData || force){plan=addModeGate(data.plan);render();}
+    if(changedData || force){plan=upgradePlan(data.plan);render();}
     $("persist").textContent="Сохранено в папке игры";
     if(data.warnings.length)notice(data.warnings.join(" "));
     else if(force)notice("Документы и Feature Index сверены.");
@@ -229,7 +230,7 @@ async function pollRun(){
     if(formDraft()!==savedStageDraft){notice("Шаг завершён. Ваши правки в карточке сохранены до её закрытия.");return;}
     const seq=editSequence,data=await projectApi();
     if(seq!==editSequence || writeCount || !$("detail").open || stage!==editing || formDraft()!==savedStageDraft)return;
-    projectData=data;projectRevision=data.revision;plan=addModeGate(data.plan);render();
+    projectData=data;projectRevision=data.revision;plan=upgradePlan(data.plan);render();
     const n=nodeById(stage);
     if(n){form.elements.report.value=n.report||"";stageDetails(n);}
   }catch(e){

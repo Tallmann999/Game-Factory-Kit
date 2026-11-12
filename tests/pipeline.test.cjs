@@ -7,6 +7,25 @@ const {main} = require("../scripts/run-pipeline.cjs");
 const {initialPlan,briefing,choosePlatform,extraSkills,checkDiagram,assetOffer,matchesPlatform} = require("../docs/pipeline/model.js");
 const {composition} = require("../docs/pipeline/skills.js");
 
+test("old standard routes keep authored data while moving the board before scope",()=>{
+  const {upgradePlan,ordered}=require("../docs/pipeline/model.js");
+  const plan=initialPlan();
+  const old=["idea","research","concept","scope","platform","work-mode","board","build","qa","finish"];
+  delete plan.workflowVersion;
+  plan.edges.forEach((e,i)=>{e.from=old[i];e.to=old[i+1];});
+  const board=plan.nodes.find(n=>n.id==="board");
+  Object.assign(board,{x:750,y:600,description:"Моя доска",report:"Палитра выбрана"});
+  const custom=structuredClone(plan);
+  custom.edges.push({...custom.edges[0],id:"my-input",from:"concept",to:"qa"});
+  assert.deepEqual(upgradePlan(structuredClone(custom)),custom);
+  upgradePlan(plan);
+  const expected=["idea","research","concept","board","scope","platform","work-mode","build","qa","finish"];
+  assert.deepEqual(ordered(plan).map(n=>n.id),expected);
+  assert.equal(board.description,"Моя доска");assert.equal(board.report,"Палитра выбрана");
+  assert.equal(board.x,750);assert.equal(board.y,600);assert.ok(plan.nodes.every(n=>n.policy==="confirm"));
+  assert.deepEqual(upgradePlan(structuredClone(plan)),plan);
+});
+
 test("stage tables cover the shipped manifest and follow the assigned lead",()=>{
   const plan=initialPlan();
   const names=new Set(plan.nodes.flatMap(node=>composition(node).map(skill=>skill.name)));
@@ -77,10 +96,24 @@ test("platform choice routes build and QA without leaking skills between engines
   assert.ok(!extraSkills(build,p).some(name=>name.startsWith("scenario-roblox-")));
 });
 
+test("Web 3D skills are selected automatically and do not follow a platform switch",()=>{
+  const plan=initialPlan(),build=plan.nodes.find(n=>n.id==="build"),qa=plan.nodes.find(n=>n.id==="qa");
+  const skills=["three-webgl-game","web-3d-asset-pipeline","game-playtest"];
+  choosePlatform(plan,"HTML / Web","Компьютер","3D");
+  assert.ok(extraSkills(build,plan).includes(skills[0]));
+  assert.ok(extraSkills(build,plan).includes(skills[1]));
+  assert.ok(extraSkills(qa,plan).includes(skills[2]));
+  build.skills=[...skills];qa.skills=[...skills];
+  for(const [engine,dimension] of [["HTML / Web","2D"],["Unity","3D"],["Roblox","3D"]]){
+    choosePlatform(plan,engine,"Компьютер",dimension);
+    for(const node of [build,qa])assert.ok(!extraSkills(node,plan).some(name=>skills.includes(name)));
+  }
+});
+
 test("a stage waits for consent and passes its accepted result to the next agent", async t=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"gfk-run-"));
   const file=path.join(dir,"plan.json");
-  t.after(()=>{fs.rmSync(file,{force:true});fs.rmdirSync(dir);});
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const plan=initialPlan();
   plan.nodes[0].policy="confirm";
   plan.nodes[0].skills=["game-design"];
@@ -91,7 +124,7 @@ test("a stage waits for consent and passes its accepted result to the next agent
   const read=()=>JSON.parse(fs.readFileSync(file,"utf8"));
   const prompts=[];
   const services={ask:async()=>"нет",launch:(cwd,prompt)=>{
-    assert.equal(cwd,fs.realpathSync(dir)); prompts.push(prompt);return {status:0};
+    assert.equal(cwd,fs.realpathSync(dir)); if(!prompts.length)fs.writeFileSync(path.join(dir,"idea.md"),"Игрок ведёт лодку."); prompts.push(prompt);return {status:0};
   }};
   await main(args,services);
   assert.equal(prompts.length,0);
@@ -105,6 +138,9 @@ test("a stage waits for consent and passes its accepted result to the next agent
   assert.match(prompts[0],/Подключить скилл: game-design/);
   services.ask=async()=>"";
   await main(args,services);
+  assert.equal(prompts.length,1);
+  const consent=["да",""];services.ask=async()=>consent.shift();
+  await main(args,services);
   assert.match(prompts[1],/game-market-research/);
   assert.match(prompts[1],/Проверено: docs\/game\/idea.md/);
   assert.equal(read().nodes[1].status,"active");
@@ -114,12 +150,14 @@ test("a stage waits for consent and passes its accepted result to the next agent
 test("CLI asks for a platform in a legacy plan and uses it for the following build",async t=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"gfk-platform-"));
   const file=path.join(dir,"plan.json");
-  t.after(()=>{fs.rmSync(file,{force:true});fs.rmdirSync(dir);});
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const plan=initialPlan();
   plan.nodes=plan.nodes.filter(n=>n.id!=="work-mode");
   plan.edges=plan.edges.filter(e=>e.to!=="work-mode");
   for(const edge of plan.edges) if(edge.from==="work-mode") edge.from="platform";
   delete plan.modeGateVersion;
+  delete plan.workflowVersion;
+  for(const n of plan.nodes)n.policy="clarify";
   for (const node of plan.nodes) {
     if (["idea","research","concept","scope","board"].includes(node.id)) node.status="done";
   }

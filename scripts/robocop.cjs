@@ -4,7 +4,7 @@ const http=require("node:http");
 const fs=require("node:fs");
 const path=require("node:path");
 const {Board,safeFile}=require("./robocop-board.cjs");
-const {platformLabel}=require("../docs/pipeline/model.js");
+const {platformLabel,upgradePlan,unfinishedInputs}=require("../docs/pipeline/model.js");
 const mediaTypes={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".gif":"image/gif",".mp4":"video/mp4",".webm":"video/webm"};
 function action(board,{type,id,value,previous}) {
   const card=board.cards.find(c=>c.id===id);
@@ -97,15 +97,14 @@ function main(args) {
   const [file,flag,root,verify,...check]=args;
   if(flag!=="--project" || verify!=="--check" || !check.length) throw Error("Укажите план, папку игры и команду проверки. См. --help.");
   const plan=JSON.parse(fs.readFileSync(file,"utf8").replace(/^\uFEFF/,""));
+  upgradePlan(plan);
   const board=new Board(root,plan,check);
-  if(fs.realpathSync(file)===path.join(board.root,".game-factory","pipeline.json"))board.checkGate=()=>{
-    const data=require("./project.cjs").snapshot(board.root);
+  const canonical=fs.realpathSync(file)===path.join(board.root,".game-factory","pipeline.json");
+  if(canonical || plan.workflowVersion===2)board.checkGate=()=>{
+    const data=canonical?require("./project.cjs").snapshot(board.root):{plan,stages:require("./project-audit.cjs").audit(board.root,plan).stages};
     if(JSON.stringify(data.plan.gitTarget)!==JSON.stringify(board.target) || data.plan.workMode!==board.data.mode ||
        platformLabel(data.plan)!==platformLabel(board.plan))throw Error("Назначение или режим изменились. Переоткройте доску.");
-    const order=require("../docs/pipeline/model.js").verifyRoute(data.plan), ancestors=new Set(["build"]);
-    for(const n of order.reverse())if(ancestors.has(n.id))for(const e of data.plan.edges.filter(e=>e.to===n.id))ancestors.add(e.from);
-    ancestors.delete("build");
-    const blocked=data.plan.nodes.find(n=>ancestors.has(n.id) && data.stages[n.id].status!=="done");
+    const [blocked]=unfinishedInputs(data.plan,"build",n=>data.stages[n.id].status);
     if(blocked)throw Error("Сначала завершите этап «"+blocked.title+"».");
   };
   serve(board);

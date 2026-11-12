@@ -2,7 +2,7 @@
 "use strict";
 const fs=require("node:fs"),path=require("node:path"),http=require("node:http");
 const {createHash,randomUUID}=require("node:crypto");
-const {initialPlan,checkDiagram,ordered,choosePlatform,engines,devices,dimensions}=require("../docs/pipeline/model.js");
+const {initialPlan,upgradePlan,unfinishedInputs,checkDiagram,ordered,choosePlatform,selectMode,engines,devices,dimensions}=require("../docs/pipeline/model.js");
 const {safeFile}=require("./robocop-board.cjs");
 const {audit,docPath}=require("./project-audit.cjs");
 const {git,boardDirectory}=require("./project-git.cjs");
@@ -40,7 +40,7 @@ function initialize(root) {
 }
 function read(root) {
   const raw=fs.readFileSync(safeFile(root,planPath),"utf8");
-  const plan=JSON.parse(raw.replace(/^\uFEFF/,""));checkDiagram(plan);ordered(plan);
+  const plan=JSON.parse(raw.replace(/^\uFEFF/,""));checkDiagram(plan);upgradePlan(plan);ordered(plan);
   return {plan,revision:hash(raw)};
 }
 function save(root,revision,plan) {
@@ -50,7 +50,19 @@ function save(root,revision,plan) {
   try {
     const previous=read(root);
     if(previous.revision!==revision)throw Error("Схема изменилась в другой сессии. Скачайте свои правки в JSON и обновите страницу.");
-    checkDiagram(plan);ordered(plan);
+    checkDiagram(plan);upgradePlan(plan);ordered(plan);
+    if(previous.plan.workflowVersion===2 && plan.workflowVersion!==2)throw Error("Сохраните этапы пошагового маршрута.");
+    if(plan.workflowVersion===2 && (JSON.stringify(previous.plan.platform)!==JSON.stringify(plan.platform) || previous.plan.engine!==plan.engine || previous.plan.workMode!==plan.workMode)){
+      const stages=snapshot(root).stages;
+      for(const id of ["platform","work-mode"]){
+        const changed=id==="work-mode"?plan.workMode && previous.plan.workMode!==plan.workMode:
+          plan.platform && (previous.plan.engine!==plan.engine || JSON.stringify(previous.plan.platform)!==JSON.stringify(plan.platform));
+        if(changed){
+          const closed=unfinishedInputs(previous.plan,id,n=>stages[n.id].status);
+          if(closed.length)throw Error("Сначала завершите: "+closed.map(n=>n.title).join(", "));
+        }
+      }
+    }
     if(previous.plan.gitTarget && JSON.stringify(previous.plan.gitTarget)!==JSON.stringify(plan.gitTarget) && fs.existsSync(path.join(boardDirectory(root,previous.plan.gitTarget),"owner.lock")))throw Error("Закройте доску фич предыдущей ветки перед сменой назначения.");
     const raw=JSON.stringify(plan,null,2)+"\n";if(hash(raw)===revision)return revision;
     fs.writeFileSync(tmp,raw,{flag:"wx"});fs.renameSync(tmp,file);
@@ -65,7 +77,7 @@ function snapshot(root) {
 }
 function handoff(root,data) {
   const {plan,stages,features,nextAction}=data;
-  const open=ordered(plan).filter(n=>stages[n.id].status!=="done" && plan.edges.filter(e=>e.to===n.id).every(e=>stages[e.from].status==="done"));
+  const open=ordered(plan).filter(n=>stages[n.id].status!=="done" && !unfinishedInputs(plan,n.id,d=>stages[d.id].status).length);
   const sections=["# Продолжение работы над "+path.basename(root),"Работай в папке игры. Прочитай .game-factory/pipeline.json и документы текущего этапа.",
     "Завершено: "+plan.nodes.filter(n=>stages[n.id].status==="done").map(n=>n.title).join(", "),
     "Публикация: "+(plan.gitTarget?plan.gitTarget.remote+"/"+plan.gitTarget.branch:"обязательно спроси ветку и remote перед первой фичей")];
@@ -140,10 +152,17 @@ function serve(root,{port=0,launch,guided=false}={}) {
   return server;
 }
 function main(args) {
-  if(!args.length || args.includes("--help")){console.log("node scripts/project.cjs <папка игры> [--port номер | --audit | --import-audit отчёт.json | --handoff | --record ID процент документ следующий-шаг]");return;}
+  if(!args.length || args.includes("--help")){console.log("node scripts/project.cjs <папка игры> [--port номер | --audit | --import-audit отчёт.json | --handoff | --platform движок устройство 2D/3D | --mode manual/robocop | --record ID процент документ следующий-шаг]");return;}
   const [folder,mode,id,value,doc,...remaining]=args,root=gameRoot(folder);
   initialize(root);
   if(!mode)return serve(root);
+  if(mode==="--platform" || mode==="--mode"){
+    const {plan,revision}=read(root);
+    if(mode==="--platform" && args.length===5)choosePlatform(plan,id,value,doc);
+    else if(mode==="--mode" && args.length===3)selectMode(plan,id);
+    else throw Error("Проверьте аргументы выбора: --help.");
+    save(root,revision,plan);return;
+  }
   if(mode==="--guided")return serve(root,{guided:true});
   if(mode==="--port" && /^\d+$/.test(id) && Number(id)>0 && Number(id)<=65535)return serve(root,{port:Number(id)});
   if(mode==="--import-audit"){

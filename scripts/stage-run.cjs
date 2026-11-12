@@ -8,7 +8,7 @@ const {safeFile}=require("./robocop-board.cjs");
 const {audit,docPath}=require("./project-audit.cjs");
 const {codexCommand}=require("./run-pipeline.cjs");
 const runtime=require("./codex-runtime.cjs");
-const {checkDiagram,ordered,platformLabel,extraSkills,assetOffer,policies}=require("../docs/pipeline/model.js");
+const {checkDiagram,ordered,unfinishedInputs,upgradePlan,platformLabel,extraSkills,assetOffer,policies}=require("../docs/pipeline/model.js");
 
 const uuid=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const directory=".game-factory/stage-runs";
@@ -96,6 +96,13 @@ function recentRuns(root,plan) {
   if(!fs.existsSync(safeFile(root,directory)))return {};
   return Object.fromEntries([...plan.nodes.map(n=>n.id),"@audit"].map(id=>[id,publicJob(load(root,id))]).filter(([,run])=>run));
 }
+function checkStageInputs(root,plan,stage,analysis) {
+  if(stage==="@audit")return;
+  if(!plan.nodes.some(n=>n.id===stage))throw Error("Этап удалён.");
+  const stages=(analysis||audit(root,plan)).stages;
+  const closed=unfinishedInputs(plan,stage,n=>active(load(root,n.id)?.status)?"active":stages[n.id].status);
+  if(closed.length)throw Error("Сначала завершите: "+closed.map(n=>n.title).join(", "));
+}
 function makePrompt(plan,node,analysis,task) {
   const inputs=plan.edges.filter(e=>e.to===node.id).map(e=>plan.nodes.find(n=>n.id===e.from));
   const docs=new Set([...(analysis.stages[node.id].documents||[]),...inputs.flatMap(n=>analysis.stages[n.id].documents),
@@ -105,6 +112,7 @@ function makePrompt(plan,node,analysis,task) {
     "Скиллы: "+[node.agent,...extraSkills(node,plan)].join(", ")+". Прочитай инструкции нужного скилла в проекте, в установленных навыках или в клоне из .game-factory/kit-location.txt.",
     "Платформа: "+platformLabel(plan)+". Правило вопросов: "+policies[node.policy]+". Нажатие кнопки подтверждает старт этого шага.",
     ...assetOffer(plan,node),
+    plan.workflowVersion===2?"Соблюдай порядок нового проекта из game-creator/SKILL.md. Прочитай docs/game/state.json, если он есть. Запиши решение и его поле состояния только после ответа автора. Если для решения нужен ответ, верни waiting с конкретными вариантами.":"",
     "Исходные документы: "+([...docs].join("\n")||"найди в проекте"),"Входы: "+inputs.map(n=>n.title+" — "+(n.report||n.result)).join("\n"),
     "Текущий результат: "+(node.report||"пока нет")+". Прогресс этапа: "+analysis.stages[node.id].percent+"%.",
     node.id==="research"?"Сравни реальные игры, приложи ссылки и отдели наблюдения от проверяемой гипотезы. Сохрани выводы и предложения автору в документе исследования (например, docs/game/research.md). Авторский концепт меняется отдельным поручением.":"",
@@ -122,7 +130,7 @@ function launchWorker(root,stage) {
 function start(root,{plan,revision,stageId,requestId,mode="auto"},launch=launchWorker) {
   if(typeof stageId!=="string" || !uuid.test(requestId))throw Error("Некорректный запуск этапа.");
   if(!["auto","desktop"].includes(mode))throw Error("Неизвестный способ запуска.");
-  checkDiagram(plan);ordered(plan);
+  checkDiagram(plan);upgradePlan(plan);ordered(plan);
   const isAudit=stageId==="@audit";
   const node=isAudit?{id:stageId,description:"Провести аудит всех этапов проекта"}:plan.nodes.find(n=>n.id===stageId);
   if(!node)throw Error("Этап удалён.");
@@ -135,8 +143,8 @@ function start(root,{plan,revision,stageId,requestId,mode="auto"},launch=launchW
     if(previous?.id===requestId)return {run:publicJob(previous),revision:read(root).revision};
     if(active(previous?.status))throw Error("Этот этап уже запущен. Откройте текущий чат или отмените запуск перед повтором.");
     const analysis=audit(root,plan);
-    const closed=plan.edges.filter(e=>e.to===stageId && analysis.stages[e.from].status!=="done");
-    if(closed.length)throw Error("Сначала завершите: "+closed.map(e=>plan.nodes.find(n=>n.id===e.from).title).join(", "));
+    checkStageInputs(root,read(root).plan,stageId);
+    checkStageInputs(root,plan,stageId,analysis);
     const task=node.remaining?.trim() || node.description.trim() || node.result;
     const prompt=isAudit?["Используй $game-project-audit. Прочитай "+path.join(__dirname,"../skills/game-project-audit/SKILL.md")+".",
       "Работай только в этой игре. Исследуй существующие материалы, включая созданные до установки набора. Верни оценку каждого ID с путями и проверяемыми фактами. Конструктор сам сохранит отчёт. Файлы игры не редактируй.",
@@ -244,16 +252,24 @@ async function finishStage(root,job,result) {
       node.documents=[...new Set([...(node.documents||[]),...job.documents])];
       if(node.report===job.original.report)node.report=job.message;
       if(node.remaining===job.original.remaining)node.remaining=result.remaining.slice(0,3000);
-      if(node.status===job.original.status && node.progress===job.original.progress){
+      const ownsProgress=node.status===job.original.status && node.progress===job.original.progress;
+      if(ownsProgress){
         node.status=({done:"done",partial:"active",waiting:"waiting"})[result.status];
         node.progress=result.status==="done"?100:Math.min(99,result.progress);
       }
-      try{save(root,revision,plan);break;}catch(e){
+      if(ownsProgress && plan.workflowVersion===2 && result.status==="done" && ["idea","research","concept","board","scope"].includes(node.id)){
+        const checked=audit(root,plan).stages[node.id];
+        if(checked.percent<100){
+          node.status="waiting";node.progress=checked.percent;
+          node.remaining=checked.remaining.join(" ").slice(0,3000);
+          job.message=[result.summary,node.remaining].filter(Boolean).join("\n");
+        }
+      }
+      try{save(root,revision,plan);job.status=result.status==="done" && node.status==="waiting"?"waiting":result.status;break;}catch(e){
         if(attempt>=5 || (e.code!=="EEXIST" && !e.message.includes("другой сессии")))throw e;
         await new Promise(r=>setTimeout(r,100*(attempt+1)));
       }
     }
-    job.status=result.status;
 }
 async function perform(root,stage,id,worker=execute,open=openDesktop,alreadyLocked=false) {
   const file=jobFile(root,stage),job=load(root,stage);
@@ -268,6 +284,7 @@ async function perform(root,stage,id,worker=execute,open=openDesktop,alreadyLock
     },10000);
   }
   try {
+    if(job.mode!=="desktop")checkStageInputs(root,require("./project.cjs").read(root).plan,stage);
     const result=await worker(root,job,thread=>{
       if(!uuid.test(thread))return;
       update(root,stage,id,j=>{if(!j.threadId)j.threadId=thread;j.phase="responding";j.lastEventAt=now();});
@@ -294,7 +311,7 @@ async function perform(root,stage,id,worker=execute,open=openDesktop,alreadyLock
     await locked(root,stage,()=>{const latest=load(root,stage);if(latest?.id===id){latest.opening=opening;store(file,latest);}});
   }
 }
-module.exports={start,perform,recentRuns,load,publicJob,recoverAudit,jobFile,store,directory,chatAnswer,active,cancel,logText};
+module.exports={checkStageInputs,start,perform,recentRuns,load,publicJob,recoverAudit,jobFile,store,directory,chatAnswer,active,cancel,logText};
 if(require.main===module)process.once("message",({root,stage,id})=>{
   perform(root,stage,id).catch(e=>{console.error(e.message);process.exitCode=1;});
 });

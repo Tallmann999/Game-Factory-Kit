@@ -74,12 +74,16 @@ function audit(root,plan) {
     if(!Array.isArray(saved.stages))throw Error("Отсутствуют этапы");
     reviews=saved.stages;lastAudit={date:saved.date,summary:saved.summary};
   }catch{warnings.push("Не удалось прочитать выводы аудита проекта.");}
+  function currentEvidence(e){
+    try{const stat=fs.statSync(docPath(root,e.path));return stat.size===e.size && stat.mtimeMs===e.mtime;}catch{return false;}
+  }
+  const verified=new Map(reviews.filter(s=>s.evidence.every(currentEvidence)).map(s=>[s.id,s]));
   const filesByStage={};
   const contents={};
   const meaningful={};
   for(const n of plan.nodes) {
     const found=files.filter(f=>names[n.id]?.test(path.posix.basename(f)));
-    const linked=[...new Set([...(n.documents||[]),...found])];
+    const linked=[...new Set([...(n.documents||[]),...found,...(verified.get(n.id)?.evidence||[]).map(e=>e.path)])];
     filesByStage[n.id]=[]; const parts=[];
     for(const f of linked.slice(0,100)) {
       try {
@@ -129,6 +133,24 @@ function audit(root,plan) {
     qa:[[qaRows.length>0,"Записать фактические результаты плейтеста по сценариям."],[qaRows.length>0 && qaRows.every(row=>/\|\s*PASS\s*\|/i.test(row)),"Пройти все перечисленные проверки, включая перезапуск."]],
     finish:[[!!meaningful.finish,"Указать сборку и способ запуска."],[false,"Подтвердить передачу проверенной сборки в карточке."]]
   };
+  const guided=plan.workflowVersion===2;
+  const decision={};
+  if(guided){
+    const revision=state.idea_revision??1;
+    const current=Number.isSafeInteger(revision) && revision>0 && state.research_revision===revision;
+    const chosen=value=>["A","B","C"].includes(value);
+    decision.research=[current && state.research_decision==="keep","Получить решение автора по текущей версии идеи. При изменении повторить исследование целиком."];
+    const signed=/^\s*(?:Статус|Status):\s*(?:утвержд[её]н|approved)[.]?[ \t]*$/im;
+    decision.concept=[signed.test(meaningful.concept||""),"Утвердить полный концепт и записать «Статус: утверждён»."];
+    decision.board=[chosen(state.visual_choice),"Показать три визуальных направления и записать выбор автора."];
+    decision.scope=[chosen(state.mvp_choice),"Согласовать один из трёх объёмов MVP."];
+    if(executionNote)checks.scope.push([false,"Исправить Feature Index: "+executionNote]);
+    checks.research[2]=[current && checks.research[2][0],"Провести полное исследование текущей версии идеи."];
+    checks.concept=[[!!(meaningful.concept||"").replace(signed,"").trim(),"Описать полный концепт игры."]];
+    const board=meaningful.board||"";
+    checks.board=["A","B","C"].map(id=>[new RegExp("^"+id+"[.)]\\s+\\S","m").test(board),"Описать направление "+id+" и приложить визуальный референс."]);
+    for(const [id,choice] of Object.entries(decision))checks[id].push(choice);
+  }
   for(const n of plan.nodes) {
     const items=checks[n.id]||[[false,n.result]];
     const observed=Math.floor(100*items.filter(([ok])=>ok).length/items.length);
@@ -137,18 +159,25 @@ function audit(root,plan) {
     const referenced=(n.documents||[]).every(name=>filesByStage[n.id].includes(name));
     const recorded=n.progress!==undefined && referenced;
     const finding=reviews.find(s=>s.id===n.id);
-    const valid=finding?.evidence.every(e=>{
-      try{const stat=fs.statSync(docPath(root,e.path));return stat.size===e.size && stat.mtimeMs===e.mtime;}catch{return false;}
-    });
+    const valid=verified.has(n.id);
     const evidence=valid?finding.evidence:[];
     const fixed=["platform","work-mode"].includes(n.id) || (n.id==="build" && features.length);
     const base=n.id==="build" && features.length?observed:recorded?manual:Math.max(observed,referenced?manual:0);
-    const percent=valid && !fixed?Math.max(recorded || n.status==="done"?manual:0,finding.percent):base;
+    let percent=valid && !fixed?Math.max(recorded || n.status==="done"?manual:0,finding.percent):base;
+    // A manual percentage or audit cannot supply a missing author decision.
+    if(guided && (decision[n.id] || ["platform","work-mode","idea"].includes(n.id))){
+      if(observed===100)percent=100;
+      else if(percent===100 || fixed)percent=observed;
+      if(n.id==="research" && (state.idea_revision??1)>1 && state.research_revision!==state.idea_revision)
+        percent=0;
+    }
     const status=percent===100?"done":n.status==="waiting"?"waiting":percent>0 || n.status==="active" ||
       (n.id==="build" && features.some(f=>["working","review","building","in_progress","implemented","push_pending"].includes(f.state)))?"active":"planned";
     stages[n.id]={percent,status,evidence,documents:[...new Set([...filesByStage[n.id],...evidence.map(e=>e.path)])],remaining:percent===100?[]:
       (recorded && n.remaining && n.id!=="build"?[n.remaining]:[...(n.remaining?[n.remaining]:[]),...items.filter(([ok])=>!ok).map(([,todo])=>todo)])};
     if(valid && !fixed && percent<100 && finding.remaining)stages[n.id].remaining=[...new Set([n.remaining,finding.remaining].filter(Boolean))];
+    if(guided && percent<100 && decision[n.id] && !decision[n.id][0] && !stages[n.id].remaining.includes(decision[n.id][1]))
+      stages[n.id].remaining.push(decision[n.id][1]);
     if(finding && !valid)stages[n.id].remaining.push("Доказательства изменились. Обновите аудит проекта.");
   }
   const notes=files.filter(f=>/(^|\/)(?:\d{4}-\d{2}-\d{2}-)?handoff\.md$/i.test(f)).sort().reverse();

@@ -5,7 +5,7 @@ const path = require("node:path");
 const {randomUUID} = require("node:crypto");
 const {spawnSync} = require("node:child_process");
 const {createInterface} = require("node:readline/promises");
-const {checkDiagram,verifyRoute,policies,statuses,extraSkills,assetOffer,engines,devices,dimensions,
+const {checkDiagram,upgradePlan,unfinishedInputs,verifyRoute,policies,statuses,extraSkills,assetOffer,engines,devices,dimensions,
   platformLabel,platformQuestion,choosePlatform,routedStages,selectMode} = require("../docs/pipeline/model.js");
 
 function codexCommand() {
@@ -39,6 +39,7 @@ function stagePrompt(plan,node,deps) {
     ...extraSkills(node,plan).map(name=>"Подключить скилл: "+name),
     ...assetOffer(plan,node),
     "Если указанный скилл недоступен, сообщи об этом. Используй разрешённые инструменты проекта.",
+    "В пошаговом маршруте прочитай правила game-creator и скилла этапа. Дождись решений автора, сохрани ответы и поля docs/game/state.json. Следующий блок требует отдельного разрешения.",
     "Задача: "+node.description, "Критерий приёмки: "+node.result, "Правило вопросов: "+policies[node.policy],
     "Документы этапа: "+(node.documents||[]).join(", "), "Следующий шаг: "+(node.remaining||node.result),
     "Предыдущая запись по этапу: "+(node.report||"нет"),
@@ -61,12 +62,13 @@ async function main(args, services={}) {
   if (fs.statSync(file).size>4*1024*1024) throw new Error("Схема больше 4 МБ.");
   let original=fs.readFileSync(file,"utf8");
   const plan=JSON.parse(original.replace(/^\uFEFF/,"")); checkDiagram(plan);
+  upgradePlan(plan);
   const order=verifyRoute(plan);
   const inputs=n=>plan.edges.filter(e=>e.to===n.id).map(e=>order.find(d=>e.from===d.id));
   const canonical=path.basename(file)==="pipeline.json" && path.basename(path.dirname(file))===".game-factory";
   let observed=canonical?require("./project-audit.cjs").audit(path.dirname(path.dirname(file)),plan).stages:{};
   const status=n=>observed[n.id]?.status || n.status;
-  const unlocked=n=>inputs(n).every(d=>status(d)==="done");
+  const unlocked=n=>!unfinishedInputs(plan,n.id,status).length;
   if (list) {
     for (const n of order) console.log(n.id+"  "+n.title+"  —  "+statuses[status(n)]+
       (!plan.platform && routedStages.includes(n.id)?" · нужна платформа":status(n)==="planned" && unlocked(n)?" · можно начать":""));
@@ -76,6 +78,7 @@ async function main(args, services={}) {
   if (!fs.statSync(project).isDirectory() || project===root || project.startsWith(root+path.sep))
     throw new Error("Выберите папку игры за пределами исходников набора.");
   if(canonical && path.dirname(path.dirname(file))!==project)throw Error("Схема привязана к другой папке игры.");
+  if(plan.workflowVersion===2 && !canonical)observed=require("./project-audit.cjs").audit(project,plan).stages;
   const n=stageId?order.find(d=>d.id===stageId):order.find(d=>status(d)==="active" && unlocked(d))||
     order.find(d=>status(d)==="planned" && unlocked(d));
   if (!n) {
@@ -114,7 +117,7 @@ async function main(args, services={}) {
       console.log("Откройте доску фич командой node scripts/robocop.cjs --help. После приёмки очереди зафиксируйте результат сборки в схеме.");
       return;
     }
-    if (n.policy==="confirm" || n.status==="waiting") {
+    if (n.id!=="platform" && (plan.workflowVersion===2 || n.policy==="confirm" || n.status==="waiting")) {
       if ((await ask("Можно начать этот этап? Введите «да»: ")).toLowerCase()!=="да") return;
     }
     if (!plan.platform && (n.id==="platform" || routedStages.includes(n.id))) {
@@ -142,6 +145,13 @@ async function main(args, services={}) {
     if (outcome!=="1" && outcome!=="2") return;
     const report=await ask(outcome==="1"?"Укажите полученный результат или путь: ":"Какой вопрос остался? ");
     if (!report || report.length>3000) {console.log("Введите результат до 3000 символов в карточке. Этап остаётся в работе.");return;}
+    if(outcome==="1" && plan.workflowVersion===2 && ["idea","research","concept","board","scope"].includes(n.id)){
+      const evidence=require("./project-audit.cjs").audit(project,plan).stages[n.id];
+      if(evidence.percent<100){
+        n.report=report;n.remaining=evidence.remaining.join(" ").slice(0,3000);n.status="waiting";save();
+        console.log("Этап ждёт подтверждения: "+n.remaining);return;
+      }
+    }
     n.report=report;n.status=outcome==="1"?"done":"waiting";save();
     console.log("Сохранено: "+statuses[n.status]+". Откройте обновлённый JSON в конструкторе.");
   } finally { fs.closeSync(lockFd);fs.unlinkSync(lock); }

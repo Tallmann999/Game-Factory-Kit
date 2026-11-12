@@ -6,18 +6,18 @@
   <title>Конструктор пайплайна · Game Factory Kit</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="tour.css">
-  <script defer src="model.js?v=project2"></script>
+  <script defer src="model.js?v=guided2"></script>
   <script defer src="skills.js"></script>
   <link rel="stylesheet" href="progress.css">
   <script defer src="project-view.js"></script>
-  <script defer src="app.js?v=project2"></script>
-  <script defer src="tour.js?v=project2"></script>
+  <script defer src="app.js?v=guided2"></script>
+  <script defer src="tour.js?v=guided2"></script>
 </head>
 <body>
 <header>
   <div class="brand"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#ccfa70"/><path d="m7 12 9-5 9 5-9 5zm0 5 9 5 9-5m-18 5 9 5 9-5" fill="none" stroke="#18271a" stroke-width="2.3" stroke-linejoin="round"/></svg>Game Factory Kit</div>
   <span class="divider">/</span><span class="subbrand">Конструктор пайплайна</span>
-  <div class="tools"><button id="tourStart">Обучение</button><button id="load">Открыть JSON</button><input hidden type="file" id="file" accept=".json,application/json"><button id="save">Скачать JSON ↓</button></div>
+  <div class="tools"><button id="switchRoute" hidden>Пошаговый старт</button><button id="tourStart">Обучение</button><button id="load">Открыть JSON</button><input hidden type="file" id="file" accept=".json,application/json"><button id="save">Скачать JSON ↓</button></div>
 </header>
 <main>
   <aside><div class="aside-title">Этапы <span id="count"></span></div><nav id="outline" aria-label="Этапы пайплайна"></nav>

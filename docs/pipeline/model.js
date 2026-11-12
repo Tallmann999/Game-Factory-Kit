@@ -10,7 +10,7 @@ const builders = ["game-web-builder", "unity-mcp-orchestrator", "game-roblox", "
 const devices = ["Компьютер", "Телефон / планшет", "Компьютер и мобильные"];
 const dimensions = ["2D", "3D"];
 const platformQuestion = "На какой платформе ты будешь делать свою игру?";
-const routedStages = ["board","build","qa","finish"];
+const routedStages = ["build","qa","finish"];
 const workModes={manual:"Ручной",robocop:"Робокоп"};
 function addModeGate(plan) {
   if(plan.modeGateVersion===1) return plan;
@@ -27,7 +27,10 @@ function addModeGate(plan) {
     status:"planned",policy:"confirm"
   });
   for(const e of outgoing) e.from="work-mode";
-  plan.edges.push(edge("platform","work-mode"));plan.modeGateVersion=1;
+  const gateEdge=edge("platform","work-mode");
+  gateEdge.id="platform-work-mode";
+  while(plan.edges.some(e=>e.id===gateEdge.id))gateEdge.id+="-";
+  plan.edges.push(gateEdge);plan.modeGateVersion=1;
   return plan;
 }
 function selectMode(plan,mode) {
@@ -49,6 +52,11 @@ function choosePlatform(plan,engine,device,dimension) {
   const previous=platformLabel(plan);
   const changed=plan.platform && (engine!==plan.engine || device!==plan.platform.device || dimension!==plan.platform.dimension);
   plan.engine=engine; plan.platform={device,dimension};
+  if(changed && plan.workMode){
+    delete plan.workMode;
+    const gate=plan.nodes.find(n=>n.id==="work-mode");
+    if(gate){gate.status="planned";delete gate.progress;delete gate.report;}
+  }
   for (const node of plan.nodes) {
     if (node.id==="build") node.agent=builders[engines.indexOf(engine)];
     if (node.id==="platform") {
@@ -67,17 +75,17 @@ function routeSkills(plan,stage) {
   const mobile=plan.platform.device!==devices[0], engineSkill=builders[engines.indexOf(plan.engine)];
   const specialist=["Unity","Roblox"].includes(plan.engine) ? [engineSkill] : [];
   switch(stage) {
-    case "board": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui"]:[]),...(three?["blender-lighting-lookdev"]:[])];
     case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui","scenario-roblox-expert"]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
-      ...(web && !three?phaserSkills:[]),...(three?["blender-core"]:[]),...(mobile?["game-mobile"]:[])];
+      ...(web && !three?phaserSkills:[]),...(web && three?["three-webgl-game","web-3d-asset-pipeline"]:[]),...(three?["blender-core"]:[]),...(mobile?["game-mobile"]:[])];
     case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
-      ...(three?["blender-asset-qa","blender-game-optimization"]:[])];
+      ...(web && three?["game-playtest"]:[]),...(three?["blender-asset-qa","blender-game-optimization"]:[])];
     case "finish": return ["game-qa",...specialist,...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(three?["blender-export-pipelines"]:[])];
   }
 }
 function matchesPlatform(plan,stage,name) {
   if(name==="game-3d-props")return !plan?.platform || (plan.platform.dimension==="3D" && ["HTML / Web","Unity","Roblox"].includes(plan.engine));
+  if(["three-webgl-game","web-3d-asset-pipeline","game-playtest"].includes(name))return !plan?.platform || (plan.engine==="HTML / Web" && plan.platform.dimension==="3D");
   if(["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"].includes(name))return plan?.engine==="Roblox";
   if (!plan?.platform || !routedStages.includes(stage)) return true;
   if (name.startsWith("phaser-")) return plan.engine==="HTML / Web" && plan.platform.dimension==="2D";
@@ -100,24 +108,75 @@ const W = 202, H = 154;
 function edge(from, to, out = "r", into = "l") {
   return {id:makeId(), from, to, out, into, bend:null};
 }
+const guidedStages = [
+  ["idea","start","Я хочу сделать игру","game-creator","Запишите исходную идею словами автора и основное действие игрока. Покажите зелёную карточку и спросите, запускать ли исследование.","Сохранённая идея в idea.md."],
+  ["research","design","Исследование","game-market-research","Сравните реальные аналоги, покажите страницы игр и проверяемую гипотезу. Спросите: сохраняем идею и начинаем интервью или меняем идею и повторяем исследование целиком?","Исследование текущей версии идеи со ссылками и решением автора."],
+  ["concept","design","Концепт игры","game-design","Проведите интервью о полной игре раундами по 10 вопросов, по 2–3 варианта и свой ответ. Сохраняйте сквозную нумерацию и ответы. Покажите весь концепт автору.","Полный concept.md без открытых ключевых решений, утверждённый автором."],
+  ["board","design","Визуальное направление","game-art-director","Покажите три разных визуальных направления, включая вариант по референсу автора, если он предоставлен. Дождитесь выбора.","Доска с тремя направлениями и выбранным автором стилем в art-direction.md."],
+  ["scope","design","Объём MVP","game-mvp","Предложите три объёма по концепту. Покажите механику первой очереди, последующие механики и исключения. После выбора составьте Feature Index.","Выбранный объём и Feature Index с F-ID, порядком, зависимостями и приёмкой."],
+  ["platform","design","Выбор платформы","game-creator","Спросите, на каком движке, для какого устройства и в 2D или 3D создавать прототип.","Подтверждены движок, устройство и размерность."],
+  ["work-mode","design","Режим работы","game-creator","Сверьте концепт, стиль, объём MVP, Feature Index и платформу. Спросите: выбирать фичи вручную или поручить очередь Робокопу?","Автор выбрал режим выполнения Feature Index."],
+  ["build","build","Сборка прототипа","game-web-builder","Соберите игровой цикл по принятому Feature Index в выбранном режиме.","Играбельная сборка и инструкция запуска."],
+  ["qa","test","Плейтест и QA","game-qa","Пройдите раунд, проверьте управление и перезапуск. Зафиксируйте результат.","Отчёт о проверке и решение о готовности."],
+  ["finish","finish","Готовая игра","game-creator","Передайте проверенную сборку на выбранном движке.","Путь к сборке, способ запуска и результаты проверки."]
+];
 function initialPlan() {
-  const specs = [
-    ["idea","start","Я хочу сделать игру","game-creator","Опишите, что делает игрок и почему ему захочется продолжить.","Идея и открытые вопросы в idea.md.",56,176],
-    ["research","design","Исследование","game-market-research","Сравните близкие игры и выделите проверяемую гипотезу.","Референсы, факты и гипотезы в research.md.",336,72],
-    ["concept","design","Концепт игры","game-design","Автор описывает игру после исследования аналогов: основные механики, пиллары, аудиторию, правила успеха и ошибки. Агент структурирует ответы и запрашивает подтверждение автора.","Утверждённое автором описание игры в concept.md.",336,306],
-    ["scope","design","Объём MVP","game-mvp","Выберите минимальный набор функций для одного раунда.","Feature Index с приоритетами и критериями приёмки.",616,306],
-    ["platform","design","Выбор платформы","game-creator","Уточните движок, устройство, размерность и управление.","Выбранная платформа и ограничения прототипа.",616,72],
-    ["board","design","Визуальное направление","game-art-director","Сравните варианты камеры и стиля или зафиксируйте явный пропуск.","Выбранный референс или решение о пропуске доски.",896,72],
-    ["build","build","Сборка прототипа","game-web-builder","Соберите игровой цикл с началом, концом и повторным запуском.","Играбельная сборка и инструкция запуска.",896,306],
-    ["qa","test","Плейтест и QA","game-qa","Пройдите раунд, проверьте управление и перезапуск. Зафиксируйте результат.","Отчёт о проверке и решение о готовности.",1176,306],
-    ["finish","finish","Готовая игра","game-creator","Передайте проверенную сборку на выбранном движке.","Путь к сборке, способ запуска и результаты проверки.",1456,176]
-  ];
-  const nodes = specs.map(([id,kind,title,agent,description,result,x,y]) =>
-    ({id,kind,title,agent,description,result,x,y,status:"planned",policy:"clarify"}));
-  const edges = [edge("idea","research"),edge("research","concept","b","t"),edge("concept","scope"),
-    edge("scope","platform","t","b"),edge("platform","board"),edge("board","build","b","t"),edge("build","qa"),edge("qa","finish")];
-  for (const node of nodes) if(routedStages.includes(node.id)) node.x+=280;
-  return addModeGate({version:1,engine:engines[0],nodes,edges});
+  const nodes=guidedStages.map(([id,kind,title,agent,description,result],i)=>({
+    id,kind,title,agent,description,result,x:56+i*280,y:152,status:"planned",policy:"confirm"
+  }));
+  return {version:1,workflowVersion:2,modeGateVersion:1,engine:engines[0],nodes,
+    edges:nodes.slice(1).map((node,i)=>edge(nodes[i].id,node.id))};
+}
+// Upgrade the old stock sequence. User-designed graphs retain their own dependencies.
+function upgradePlan(plan) {
+  if(plan.workflowVersion===2)return plan;
+  const mode=plan.nodes.some(n=>n.id==="work-mode");
+  if(!mode && plan.nodes.length===9 && ["idea/research","research/concept","concept/scope","scope/platform","platform/board","board/build","build/qa","qa/finish"]
+    .every(pair=>plan.edges.some(e=>e.from+"/"+e.to===pair)))addModeGate(plan);
+  const old=["idea","research","concept","scope","platform","work-mode","board","build","qa","finish"];
+  if(plan.nodes.length!==old.length || plan.edges.length!==old.length-1 ||
+    !old.slice(1).every((id,i)=>plan.edges.some(e=>e.from===old[i] && e.to===id)))return plan;
+  const legacyXY=[[56,176],[336,72],[336,306],[616,306],[616,72],[896,72],[1176,72],[1176,306],[1456,306],[1736,176]];
+  const unchangedLayout=old.every((id,i)=>plan.nodes.some(n=>n.id===id && n.x===legacyXY[i][0] && n.y===legacyXY[i][1]));
+  const oldText={
+    "idea":["Опишите, что делает игрок и почему ему захочется продолжить.", "Идея и открытые вопросы в idea.md."],
+    "research":["Сравните близкие игры и выделите проверяемую гипотезу.", "Референсы, факты и гипотезы в research.md."],
+    "concept":["Автор описывает игру после исследования аналогов: основные механики, пиллары, аудиторию, правила успеха и ошибки. Агент структурирует ответы и запрашивает подтверждение автора.", "Утверждённое автором описание игры в concept.md."],
+    "scope":["Выберите минимальный набор функций для одного раунда.", "Feature Index с приоритетами и критериями приёмки."],
+    "platform":["Уточните движок, устройство, размерность и управление.", "Выбранная платформа и ограничения прототипа."],
+    "board":["Сравните варианты камеры и стиля или зафиксируйте явный пропуск.", "Выбранный референс или решение о пропуске доски."],
+    "build":["Соберите игровой цикл с началом, концом и повторным запуском.", "Играбельная сборка и инструкция запуска."],
+    "qa":["Пройдите раунд, проверьте управление и перезапуск. Зафиксируйте результат.", "Отчёт о проверке и решение о готовности."],
+    "finish":["Передайте проверенную сборку на выбранном движке.", "Путь к сборке, способ запуска и результаты проверки."],
+    "work-mode":["Выберите работу по одной фиче с вашим ревью или автономную очередь Робокопа.", "Режим выполнения Feature Index"],
+  };
+  const replace={concept:"board",board:"scope","work-mode":"build"};
+  for(const e of plan.edges)if(replace[e.from]){e.to=replace[e.from];e.bend=null;e.out="r";e.into="l";}
+  const original=new Map(plan.nodes.map(n=>[n.id,n]));
+  plan.nodes=guidedStages.map(([id,,,,description,result],i)=>{
+    const n=original.get(id);
+    if(n.description===oldText[id][0])n.description=description;
+    if(n.result===oldText[id][1])n.result=result;
+    n.policy="confirm";
+    if(unchangedLayout){n.x=56+i*280;n.y=152;}
+    return n;
+  });
+  if(unchangedLayout)for(const e of plan.edges){e.out="r";e.into="l";e.bend=null;}
+  plan.workflowVersion=2;
+  return plan;
+}
+function unfinishedInputs(plan,id,status) {
+  const pending=[id],seen=new Set(pending);
+  const i=plan.workflowVersion===2?guidedStages.findIndex(stage=>stage[0]===id):-1;
+  for(const [prior] of guidedStages.slice(0,Math.max(0,i))) {seen.add(prior);pending.push(prior);}
+  while(pending.length){
+    const next=pending.pop();
+    for(const e of plan.edges)if(e.to===next && !seen.has(e.from)){seen.add(e.from);pending.push(e.from);}
+  }
+  seen.delete(id);
+  const nodes=new Map(plan.nodes.map(n=>[n.id,n]));
+  return [...seen].filter(key=>!nodes.has(key) || status(nodes.get(key))!=="done")
+    .map(key=>nodes.get(key) || {id:key,title:guidedStages.find(s=>s[0]===key)?.[2]||key});
 }
 function checkDiagram(plan) {
   const fail = () => { throw new Error("Файл содержит некорректные этапы или связи."); };
@@ -195,7 +254,7 @@ function briefing(plan) {
   const lines = ["# Задание Game Factory Kit", "", "Платформа: "+platformLabel(plan), "",
     "После каждой принятой F-ID обнови Feature Index, сделай один коммит и push. Назначение: "+(plan.gitTarget?plan.gitTarget.remote+"/"+plan.gitTarget.branch:"обязательно спроси ветку и remote до начала фичи")+".",
     "Режим реализации: "+(workModes[plan.workMode]||"сначала спросить пользователя")+". Концепт, основные механики и пиллары утверждает автор. Для реализации используй очередь Робокопа по F-ID. Полный бриф, результаты, решения и медиа хранятся в карточке фичи. В чат выводи только новые F-ID для решения и завершённые F-ID.",
-    "Этап в работе сначала сверяй с текущими файлами. Для этапа со статусом «Ждёт ответа» получи ответ перед продолжением. Готовые этапы используй как входы. Передавай дальше реальные результаты и пути к ним. Выполненные проверки и оставшиеся вопросы записывай в документы проекта. При отсутствии подтверждения оставь этап открытым.", ""];
+    "Работай только в разрешённом блоке. До перехода покажи результат и дождись решения автора о следующем блоке. Этап в работе сначала сверяй с текущими файлами. Для этапа со статусом «Ждёт ответа» получи ответ перед продолжением. Готовые этапы используй как входы. Передавай дальше реальные результаты и пути к ним. Выполненные проверки и оставшиеся вопросы записывай в документы проекта. При отсутствии подтверждения оставь этап открытым.", ""];
   for (const [index,n] of order.entries()) {
     const deps = plan.edges.filter(e=>e.to===n.id).map(e=>order.find(a=>a.id===e.from));
     lines.push("## "+(index+1)+". "+n.title+" ["+n.id+"]", "Исполнитель: "+n.agent, "Входы: "+(deps.map(d=>d.title+" ["+d.id+"]").join(", ")||"идея пользователя"),
@@ -207,6 +266,6 @@ function briefing(plan) {
   return lines.join("\n");
 }
 if (typeof module!=="undefined" && module.exports) {
-  module.exports={ordered,checkDiagram,verifyRoute,policies,statuses,initialPlan,briefing,extraSkills,assetOffer,
+  module.exports={upgradePlan,unfinishedInputs,ordered,checkDiagram,verifyRoute,policies,statuses,initialPlan,briefing,extraSkills,assetOffer,
     engines,devices,dimensions,platformLabel,platformQuestion,choosePlatform,routeSkills,matchesPlatform,routedStages,selectMode,workModes};
 }

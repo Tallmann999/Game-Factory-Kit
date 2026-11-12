@@ -1,4 +1,4 @@
 interface:
   display_name: "game-design"
-  short_description: "Оформить игровую идею в короткий концепт или уточнить механи"
+  short_description: "Провести интервью о полном концепте игры или уточнить отдельную механику"
   default_prompt: "Используй $game-design для текущей игровой задачи."

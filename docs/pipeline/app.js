@@ -4,7 +4,8 @@ const nodeById = id => plan.nodes.find(n=>n.id===id);
 const byId = (list,id) => list.find(item=>item.id===id);
 const bound = value => Math.max(0,Math.min(50000,Math.round(value)));
 const ns = "http://www.w3.org/2000/svg";
-const storageKey = "game-factory-kit.pipeline.v1";
+const guidedPreview=!connectedProject && new URLSearchParams(location.search).get("workflow")==="guided";
+const storageKey = guidedPreview ? "game-factory-kit.pipeline.guided.v2" : "game-factory-kit.pipeline.v1";
 const form = $("editorForm");
 let plan = initialPlan(), scale = 1, selected = null, selectedWire = null, gesture = null;
 let pendingNew = null, editing = null, blockedStorage = false;
@@ -33,7 +34,7 @@ function persist() {
 }
 try {
   const saved = !connectedProject && localStorage.getItem(storageKey);
-  if (saved) { const data=JSON.parse(saved); checkDiagram(data); ordered(data); plan=addModeGate(data); }
+  if (saved) { const data=JSON.parse(saved); checkDiagram(data); ordered(data); plan=upgradePlan(data); }
   $("persist").textContent = saved ? "Сохранено в браузере" : "Локальная схема";
 } catch {
   blockedStorage=true;
@@ -123,8 +124,7 @@ function resizeWorld() {
 }
 function renderTasks() {
   const rows=ordered(plan).map(n=>{
-    const deps=plan.edges.filter(e=>e.to===n.id).map(e=>nodeById(e.from));
-    const open=deps.filter(d=>stageState(d).status!=="done"), status=stageState(n).status;
+    const open=blockers(n.id), status=stageState(n).status;
     const needsPlatform=!plan.platform && routedStages.includes(n.id);
     const state=needsPlatform?"Нужна платформа":status!=="planned"?statuses[status]:open.length?"Ожидает входы":"Можно начать";
     const button=el("button",undefined,"job");
@@ -208,6 +208,8 @@ function populateStageFilter() {
   if (nodeById(previous)) selector.value=previous;
 }
 function render() {
+  $("switchRoute").hidden=connectedProject || (!guidedPreview && plan.workflowVersion===2);
+  $("switchRoute").textContent=guidedPreview?"Вернуться к своей схеме":"Пошаговый старт";
   $("modeButton").hidden=!plan.platform;
   $("modeButton").textContent=plan.workMode?"Режим · "+workModes[plan.workMode]:"Выбрать режим работы";
   $("platformButton").textContent=plan.platform?platformLabel(plan):"Выбрать платформу";
@@ -334,6 +336,7 @@ $("viewport").onkeydown=evt=>{
 form.onsubmit=async evt=>{
   evt.preventDefault();const original=pendingNew||nodeById(editing), n={...original};
   for(const field of ["title","agent","description","status","result","policy","report"]) n[field]=form.elements[field].value.trim();
+  if(n.id==="work-mode" && !plan.workMode && n.status==="done"){openMode();return;}
   if (!plan.platform && (n.id==="platform" || routedStages.includes(n.id)) && ["active","done"].includes(n.status)) {
     openPlatform();return;
   }
@@ -341,7 +344,7 @@ form.onsubmit=async evt=>{
   const prior=stageState(original), pct=Number(form.elements.progress.value);
   if(n.status!==prior.status || pct!==prior.percent) {
     const locked=blockers(n.id);
-    if(locked.length && (pct>prior.percent || (prior.status==="planned" && n.status!=="planned"))){
+    if(locked.length && (pct>prior.percent || n.status==="done" || (prior.status==="planned" && n.status!=="planned"))){
       $("detailError").textContent="Сначала завершите: "+locked.map(n=>n.title).join(", ");return;
     }
     if(connectedProject && n.id==="build" && projectData.features.length && pct!==prior.percent){
@@ -377,7 +380,7 @@ for (const [field,choices] of Object.entries({engine:engines,device:devices,dime
 let pendingBrief=false;
 function updatePlatformPreview() {
   const {engine,device,dimension}=platformForm.elements;
-  let text="После выбора конструктор подключит скиллы визуального направления, сборки, QA и передачи игры.";
+  let text="После выбора конструктор подключит скиллы сборки, QA и передачи игры.";
   if (engine.value && device.value && dimension.value) {
     const draft={engine:engine.value,platform:{device:device.value,dimension:dimension.value}};
     const builder=builders[engines.indexOf(engine.value)];
@@ -401,7 +404,7 @@ platformForm.onchange=updatePlatformPreview;
 platformForm.onsubmit=evt=>{
   evt.preventDefault();
   const {engine,device,dimension}=platformForm.elements;
-  if(!plan.platform && blockers("platform").length){
+  if(blockers("platform").length){
     $("platformPreview").textContent="Сначала завершите: "+blockers("platform").map(n=>n.title).join(", ");return;
   }
   choosePlatform(plan,engine.value,device.value,dimension.value);
@@ -414,9 +417,15 @@ platformForm.onsubmit=evt=>{
   }
   changed("Платформа зафиксирована. Скиллы следующих этапов обновлены.");
   if (pendingBrief) $("brief").click();
-  else if (!$("skillsView").hidden && nodeById("build")) openSkills("build");
+  else if (!$("skillsView").hidden) renderSkillGroups();
 };
 $("mapTab").onclick=()=>showView("map");
+$("switchRoute").onclick=()=>{
+  const url=new URL(location.href);
+  if(guidedPreview){url.searchParams.delete("workflow");url.hash="";}
+  else {url.searchParams.set("workflow","guided");url.hash="ftue";}
+  location.assign(url);
+};
 $("tasksTab").onclick=()=>showView("tasks");
 $("skillsTab").onclick=()=>openSkills();
 $("stageFilter").onchange=()=>{
@@ -444,19 +453,23 @@ $("file").onchange=async evt=>{
     if(file.size>4*1024*1024) throw new Error("Файл больше 4 МБ.");
     const data=JSON.parse(await file.text());checkDiagram(data);ordered(data);
     if(!confirm("Заменить открытую схему содержимым JSON?")) return;
-    plan=addModeGate(data); selected=null;selectedWire=null;blockedStorage=false;changed("Схема открыта.");showView("map");$("fit").click();
+    plan=upgradePlan(data); selected=null;selectedWire=null;blockedStorage=false;changed("Схема открыта.");showView("map");$("fit").click();
   } catch(error) {notice("Не удалось открыть схему. "+error.message);}
 };
 $("brief").onclick=()=>{
-  if (!plan.platform) {openPlatform(true);return;}
+  if (!plan.platform) {
+    const locked=blockers("platform");
+    if(locked.length){notice("Для полного брифа сначала завершите: "+locked.map(n=>n.title).join(", "));return;}
+    openPlatform(true);return;
+  }
   try {$("briefText").textContent=briefing(plan);$("handoff").showModal();}
   catch(error) {notice(error.message);}
 };
 $("downloadBrief").onclick=()=>download("game-pipeline.md",$("briefText").textContent,"text/markdown;charset=utf-8");
 options(form.elements.status,statuses);options(form.elements.policy,policies);
 function openMode() {
-  if(!plan.platform){openPlatform();return;}
   if(blockers("work-mode").length){notice("Сначала завершите: "+blockers("work-mode").map(n=>n.title).join(", "));return;}
+  if(!plan.platform){openPlatform();return;}
   $("queueNote").textContent=projectData?.executionNote||"";
   $("modeDialog").showModal();
 }

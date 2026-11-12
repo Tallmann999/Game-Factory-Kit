@@ -23,6 +23,7 @@ async function begin(root,stage,id,thread) {
     if(!uuid.test(thread))throw Error("Нужен ID текущего чата. Передайте его последним аргументом команды begin.");
     if(job.mode!=="desktop" || !(job.status==="draft" || (job.status==="running" && job.threadId===thread)))
       throw Error("Этот шаг уже запущен или завершён. Проверьте карточку перед работой.");
+    runs.checkStageInputs(root,require("./project.cjs").read(root).plan,stage);
     job.threadId=thread;job.status="running";job.message="Работа идёт в чате Codex.";runs.store(file,job);
     const resultPath=runs.directory+"/"+id+".result.json";
     return [job.prompt,

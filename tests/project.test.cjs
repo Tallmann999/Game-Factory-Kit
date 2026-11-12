@@ -8,6 +8,48 @@ function fixture(t){
   const root=fs.mkdtempSync(path.join(os.tmpdir(),"gfk-project-test-"));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));initialize(root);return root;
 }
+test("guided project needs current research, signed concept, three styles, scope, platform and mode",async t=>{
+  const root=fixture(t),docs=path.join(root,"docs/game");
+  fs.mkdirSync(docs,{recursive:true});
+  const write=(name,content)=>fs.writeFileSync(path.join(docs,name),content);
+  const state={idea_revision:1,research_revision:1,research_status:"done"};
+  const persist=()=>write("state.json",JSON.stringify(state));
+  const runs=require("../scripts/stage-run.cjs"),chat=require("../scripts/stage-chat.cjs");
+  const uuid=require("node:crypto").randomUUID;
+  const launch=id=>runs.start(root,{...read(root),stageId:id,mode:"desktop",requestId:uuid()}).run;
+  const {choosePlatform,selectMode}=require("../docs/pipeline/model.js");
+  function choose(action){
+    const {plan,revision}=read(root);action(plan);save(root,revision,plan);
+  }
+  write("idea.md","Игрок ищет путь по звёздам.");
+  write("research.md","Сравнение навигации. https://example.org/game — проверить, вернётся ли игрок в порт.");
+  persist();
+  assert.throws(()=>launch("concept"),/Исследование/);
+  state.research_decision="keep";persist();
+  const concept=launch("concept");
+  state.idea_revision=2;persist();
+  assert.equal(snapshot(root).stages.research.percent,0);
+  await assert.rejects(chat.begin(root,"concept",concept.id,uuid()),/Исследование/);
+  state.research_revision=2;persist();
+  write("concept.md","Игрок прокладывает курс и возвращается в порт.\nСтатус: черновик");
+  assert.throws(()=>launch("board"),/Концепт/);
+  write("concept.md","Игрок прокладывает курс и возвращается в порт.\nСтатус: утверждён");
+  assert.equal(launch("board").status,"draft");
+  state.visual_choice="B";persist();
+  write("art-direction.md","A. Акварель\nB. Гравюра");
+  assert.throws(()=>launch("scope"),/Визуальное/);
+  write("art-direction.md","A. Акварель\nB. Гравюра\nC. Пиксельная графика");
+  assert.equal(launch("scope").status,"draft");
+  write("feature-index.md","| F-001 | Пройти маршрут | P0 | — | Вернуться в порт | ветер | planned |");
+  assert.throws(()=>choose(p=>choosePlatform(p,"Roblox","Компьютер","3D")),/Объём MVP/);
+  state.mvp_choice="A";persist();
+  choose(p=>choosePlatform(p,"Roblox","Компьютер","3D"));
+  assert.throws(()=>launch("build"),/Режим работы/);
+  choose(p=>selectMode(p,"manual"));
+  assert.equal(launch("build").status,"draft");
+  choose(p=>choosePlatform(p,"Unity","Компьютер","3D"));
+  assert.throws(()=>launch("build"),/Режим работы/);
+});
 test("empty templates do not count as work, custom indexed project shows only verified in-scope features",t=>{
   const root=fixture(t), docs=path.join(root,"docs/game");
   fs.cpSync(templateFolder,docs,{recursive:true});
