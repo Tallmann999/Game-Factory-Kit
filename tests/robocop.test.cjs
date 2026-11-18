@@ -29,6 +29,14 @@ function finish(c){
   fs.writeFileSync(path.join(c.work,c.id+".txt"),"ok");
   return {status:"ready",title:"Добавлена "+c.id,summary:"Проверено",files:[c.id+".txt"],media:[]};
 }
+test("visual specialists can help within one Roblox feature",t=>{
+  const board=fixture(t,"manual",finish);
+  const card=board.cards[0];
+  assert.doesNotMatch(board.prompt(card),/встроенным субагентам/);
+  choosePlatform(board.plan,"Roblox","Компьютер","3D");
+  assert.match(board.prompt(card),/текущего F-ID встроенным субагентам/);
+  assert.match(board.prompt(card),/Вторую очередь, отдельный Codex CLI/);
+});
 test("night queue hands off, skips a question, persists decisions and commits per feature",async t=>{
   const b=fixture(t,"robocop",(c,prompt)=>{
     if(c.id==="F-1" && c.turns===1)return {status:"handoff",summary:"Шаг 1",next:"Продолжи с шага 2"};

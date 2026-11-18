@@ -70,20 +70,23 @@ function choosePlatform(plan,engine,device,dimension) {
   }
 }
 function routeSkills(plan,stage) {
-  if (!plan?.platform || !routedStages.includes(stage)) return [];
+  if (!plan?.platform) return [];
+  if (stage==="board") return plan.engine==="Roblox" ? ["game-roblox-visual-team"] : [];
+  if (!routedStages.includes(stage)) return [];
   const web=plan.engine==="HTML / Web", three=plan.platform.dimension==="3D";
   const mobile=plan.platform.device!==devices[0], engineSkill=builders[engines.indexOf(plan.engine)];
   const specialist=["Unity","Roblox"].includes(plan.engine) ? [engineSkill] : [];
   switch(stage) {
-    case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui","scenario-roblox-expert"]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
+    case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui","game-roblox-visual-team","scenario-roblox-expert"]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
       ...(web && !three?phaserSkills:[]),...(web && three?["three-webgl-game","web-3d-asset-pipeline"]:[]),...(three?["blender-core"]:[]),...(mobile?["game-mobile"]:[])];
-    case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
+    case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-ui","game-roblox-visual-team","scenario-roblox-expert","scenario-roblox-performance"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(web && three?["game-playtest"]:[]),...(three?["blender-asset-qa","blender-game-optimization"]:[])];
     case "finish": return ["game-qa",...specialist,...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(three?["blender-export-pipelines"]:[])];
   }
 }
 function matchesPlatform(plan,stage,name) {
+  if(name==="game-roblox-visual-team")return !!plan?.platform && plan.engine==="Roblox";
   if(name==="game-3d-props")return !plan?.platform || (plan.platform.dimension==="3D" && ["HTML / Web","Unity","Roblox"].includes(plan.engine));
   if(["three-webgl-game","web-3d-asset-pipeline","game-playtest"].includes(name))return !plan?.platform || (plan.engine==="HTML / Web" && plan.platform.dimension==="3D");
   if(["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"].includes(name))return plan?.engine==="Roblox";

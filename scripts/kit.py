@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -222,64 +223,104 @@ class Kit:
         return issues
 
     def install(self, destination: str | Path, profile: str, dry_run: bool = False,
-                backup_and_replace: bool = False) -> dict:
+                backup_and_replace: bool = False, agents_dir: str | Path | None = None) -> dict:
         dest = checked_path(destination)
-        if dest.exists() and not dest.is_dir():
-            raise KitError(f"Destination is not a directory: {dest}")
-        if contained(self.root, dest) or contained(dest, self.root):
-            raise KitError("Install destination must be outside the kit source tree")
-        sources = {name: self.source_files(name) for name in self.select(profile)}
-        actions, conflicts = {}, {}
-        for name, files in sources.items():
-            target = checked_path(dest / name)
-            if target.exists():
-                if not target.is_dir():
-                    raise KitError(f"Skill target is not a directory: {target}")
-                diff = differences(files, tree_files(target))
-                actions[name] = "replace" if diff else "unchanged"
+        selected = self.select(profile)
+        skill_sources = {name: self.source_files(name) for name in selected}
+        agent_sources = {}
+        agent_root = None
+        visual_team = "game-roblox-visual-team"
+        if visual_team in skill_sources:
+            if agents_dir is None and dest.parts[-2:] == (".codex", "skills"):
+                agents_dir = dest.parent / "agents"
+            if agents_dir is not None:
+                agent_root = checked_path(agents_dir)
+                if contained(dest, agent_root) or contained(agent_root, dest):
+                    raise KitError("Agent and skill destinations must be separate directories")
+                for relative, source in skill_sources[visual_team].items():
+                    if Path(relative).parent == Path("agents") and source.suffix == ".toml":
+                        agent_sources[source.name] = {"": source}
+                if not agent_sources:
+                    raise KitError(f"Missing agent definitions in {visual_team}/agents")
+
+        # A skill is one directory. A role is one file in a shared user directory.
+        # Stage/replace only named items, preserving all unrelated agent files.
+        groups = {dest: skill_sources}
+        if agent_root is not None:
+            groups[agent_root] = agent_sources
+        actions = {}
+        conflicts = {}
+        for directory, sources in groups.items():
+            if directory.exists() and not directory.is_dir():
+                raise KitError(f"Destination is not a directory: {directory}")
+            if contained(self.root, directory) or contained(directory, self.root):
+                raise KitError("Install destination must be outside the kit source tree")
+            for name, files in sources.items():
+                target = checked_path(directory / name)
+                if not target.exists():
+                    actions[target] = "install"
+                    continue
+                if directory == agent_root:
+                    if not target.is_file():
+                        raise KitError(f"Agent target is not a file: {target}")
+                    diff = [] if file_hash(files[""]) == file_hash(target) else [f"changed {name}"]
+                else:
+                    if not target.is_dir():
+                        raise KitError(f"Skill target is not a directory: {target}")
+                    diff = differences(files, tree_files(target))
+                actions[target] = "replace" if diff else "unchanged"
                 if diff:
-                    conflicts[name] = diff
-            else:
-                actions[name] = "install"
+                    conflicts[target] = diff
         if conflicts and not backup_and_replace:
-            details = "; ".join(f"{name}: {', '.join(diff[:5])}" for name, diff in conflicts.items())
-            raise KitError("Conflicting skills; nothing installed. " + details +
+            details = "; ".join(f"{path}: {', '.join(diff[:5])}" for path, diff in conflicts.items())
+            raise KitError("Conflicting skills or agents; nothing installed. " + details +
                            ". Review changes or use --backup-and-replace to preserve originals.")
-        report = {"destination": str(dest), "dry_run": dry_run, "actions": actions, "backup": None}
-        changed = [name for name, action in actions.items() if action != "unchanged"]
+        report = {"destination": str(dest), "dry_run": dry_run,
+                  "actions": {name: actions[dest / name] for name in skill_sources}, "backup": None}
+        if agent_root is not None:
+            report.update(agents_directory=str(agent_root), agents_backup=None,
+                          agent_actions={name: actions[agent_root / name] for name in agent_sources})
+        elif visual_team in skill_sources:
+            report["agents_note"] = "Role definitions bundled in the skill; use --agents-dir to register them."
+        changed = [target for target, action in actions.items() if action != "unchanged"]
         if dry_run or not changed:
             return report
-        dest.mkdir(parents=True, exist_ok=True)
-        checked_path(dest)
-        with tempfile.TemporaryDirectory(prefix=".gamekit-stage-", dir=dest) as temporary:
-            stage = checked_path(temporary)
-            for name in changed:
-                for relative, source in sources[name].items():
-                    output = stage / name / relative
-                    output.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(source, output)
-            backup = None
-            if conflicts:
-                stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
-                backup = checked_path(dest / ".gamekit-backups" / stamp)
-                backup.mkdir(parents=True)
-                report["backup"] = str(backup)
+
+        with ExitStack() as stack:
+            staged = {}
+            originals = {}
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+            for directory in dict.fromkeys(target.parent for target in changed):
+                checked_path(directory).mkdir(parents=True, exist_ok=True)
+                stage = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=".gamekit-stage-", dir=directory)))
+                for target in (item for item in changed if item.parent == directory):
+                    staged[target] = stage / target.name
+                    for relative, source in groups[directory][target.name].items():
+                        output = staged[target] / relative
+                        output.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(source, output)
+                    if target in conflicts:
+                        backup = checked_path(directory / ".gamekit-backups" / stamp)
+                        backup.mkdir(parents=True, exist_ok=True)
+                        originals[target] = backup / target.name
+                        report["agents_backup" if directory == agent_root else "backup"] = str(backup)
             completed = []
             moved = []
             try:
-                for name in changed:
-                    target = checked_path(dest / name)
-                    if name in conflicts:
-                        shutil.move(str(target), str(backup / name))
-                        moved.append(name)
-                    shutil.move(str(stage / name), str(target))
-                    completed.append(name)
+                for target in changed:
+                    checked_path(target)
+                    if target in originals:
+                        shutil.move(str(target), str(originals[target]))
+                        moved.append(target)
+                    elif target.exists():
+                        raise OSError(f"Target appeared during install: {target}")
+                    shutil.move(str(staged[target]), str(target))
+                    completed.append(target)
             except OSError as error:
-                # Roll back through moves; preserve every original directory.
-                for name in reversed(completed):
-                    shutil.move(str(dest / name), str(stage / name))
-                for name in reversed(moved):
-                    shutil.move(str(backup / name), str(dest / name))
+                for target in reversed(completed):
+                    shutil.move(str(target), str(staged[target]))
+                for target in reversed(moved):
+                    shutil.move(str(originals[target]), str(target))
                 raise KitError(f"Install failed; originals restored: {error}") from error
         return report
 
@@ -385,6 +426,7 @@ def parser() -> argparse.ArgumentParser:
     target.add_argument("--project", help="Install into PROJECT/.agents/skills")
     target.add_argument("--dest", help="Explicit skill directory (project or user scope)")
     install.add_argument("--profile", default="core")
+    install.add_argument("--agents-dir", help="Explicit Codex role directory for use with --dest")
     install.add_argument("--dry-run", action="store_true")
     install.add_argument("--backup-and-replace", action="store_true")
     start = commands.add_parser("start", help="Prepare a game and serve its first available stage")
@@ -418,7 +460,13 @@ def main(argv: list[str] | None = None) -> int:
                         raise KitError("Для конструктора нужен Node.js 20+ в PATH.")
                 dest = checked_path(args.project) / ".agents" / "skills" if args.project else args.dest
                 dry_run = getattr(args, "dry_run", False)
-                report = kit.install(dest, args.profile, dry_run, getattr(args, "backup_and_replace", False))
+                agents_dir = getattr(args, "agents_dir", None)
+                if args.project:
+                    if agents_dir is not None:
+                        raise KitError("--agents-dir is only valid with --dest")
+                    agents_dir = checked_path(args.project) / ".codex" / "agents"
+                report = kit.install(dest, args.profile, dry_run, getattr(args, "backup_and_replace", False),
+                                     agents_dir=agents_dir)
                 if args.project and not dry_run:
                     location = checked_path(checked_path(args.project) / ".game-factory" / "kit-location.txt")
                     location.parent.mkdir(parents=True, exist_ok=True)

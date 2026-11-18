@@ -96,6 +96,28 @@ test("platform choice routes build and QA without leaking skills between engines
   assert.ok(!extraSkills(build,p).some(name=>name.startsWith("scenario-roblox-")));
 });
 
+test("Roblox visual team reaches the board, build and QA briefs only for a confirmed Roblox route",()=>{
+  const plan=initialPlan(),skill="game-roblox-visual-team";
+  const stages=["board","build","qa"];
+  const selected=()=>plan.nodes.filter(node=>extraSkills(node,plan).includes(skill)).map(node=>node.id);
+  for(const id of stages){
+    const node=plan.nodes.find(node=>node.id===id);
+    assert.ok(composition(node).some(entry=>entry.name===skill));
+    node.skills=[skill]; // A saved selection must respect later engine changes.
+  }
+  assert.deepEqual(selected(),[]);
+  choosePlatform(plan,"Roblox","Компьютер","3D");
+  for(const id of stages)plan.nodes.find(node=>node.id===id).skills=[];
+  assert.deepEqual(selected(),stages);
+  assert.equal(briefing(plan).split("Подключить скилл: "+skill).length-1,stages.length);
+  for(const id of stages)plan.nodes.find(node=>node.id===id).skills=[skill];
+  for(const engine of ["Unity","HTML / Web"]){
+    choosePlatform(plan,engine,"Компьютер","3D");
+    assert.deepEqual(selected(),[]);
+    assert.ok(!briefing(plan).includes(skill));
+  }
+});
+
 test("Web 3D skills are selected automatically and do not follow a platform switch",()=>{
   const plan=initialPlan(),build=plan.nodes.find(n=>n.id==="build"),qa=plan.nodes.find(n=>n.id==="qa");
   const skills=["three-webgl-game","web-3d-asset-pipeline","game-playtest"];

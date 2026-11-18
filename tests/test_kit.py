@@ -62,6 +62,92 @@ class KitTests(unittest.TestCase):
         self.assertFalse((self.dest / "game-creator" / ".env").exists())
         self.assertFalse((self.dest / "game-creator" / ".git").exists())
 
+    def add_team(self):
+        name = "game-roblox-visual-team"
+        self.manifest["skills"].append({"name": name, "origin": "original", "license": "MIT"})
+        self.manifest["profiles"]["roblox"] = [*self.names, name]
+        self.manifest["profiles"]["full"] = [*self.names, name]
+        self.write_manifest()
+        self.write(f"skills/{name}/SKILL.md", f"---\nname: {name}\ndescription: Team\n---\n")
+        self.write(f"skills/{name}/agents/rf_level.toml", 'name = "rf_level"\n')
+        self.kit = CLI.Kit(self.root)
+
+    def test_cli_project_registers_roles_only_for_selected_profile(self):
+        self.add_team()
+        project = self.base / "new-game"
+        role = project / ".codex/agents/rf_level.toml"
+        with patch.object(CLI, "Kit", return_value=self.kit), patch.object(CLI.sys, "stdout", io.StringIO()):
+            self.assertEqual(CLI.main(["install", "--project", str(project), "--profile", "core"]), 0)
+            self.assertFalse(role.parent.exists())
+            self.assertEqual(CLI.main(["install", "--project", str(project), "--profile", "roblox"]), 0)
+        self.assertEqual(role.read_text(), 'name = "rf_level"\n')
+
+    def test_start_registers_roles_before_opening_project(self):
+        self.add_team()
+        project = self.base / "new-game"
+        role = project / ".codex/agents/rf_level.toml"
+
+        def open_project(argv):
+            self.assertTrue(role.is_file())
+            self.assertEqual(argv[-2:], [str(project), "--guided"])
+            return 0
+
+        with patch.object(CLI, "Kit", return_value=self.kit), patch.object(CLI.shutil, "which", return_value="node"):
+            with patch.object(CLI.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)):
+                with patch.object(CLI.subprocess, "call", side_effect=open_project):
+                    self.assertEqual(CLI.main(["start", "--project", str(project)]), 0)
+
+    def test_user_role_path_and_explicit_custom_destination(self):
+        self.add_team()
+        arbitrary = self.base / "custom-skills"
+        roles = self.base / "role-library"
+        self.kit.install(arbitrary, "full")
+        self.assertFalse((self.base / "agents").exists())
+        dry = self.kit.install(arbitrary, "full", dry_run=True, agents_dir=roles)
+        self.assertEqual(dry["agent_actions"], {"rf_level.toml": "install"})
+        self.assertFalse(roles.exists())
+        self.kit.install(arbitrary, "full", agents_dir=roles)
+        repeated = self.kit.install(arbitrary, "full", agents_dir=roles)
+        self.assertEqual(repeated["agent_actions"], {"rf_level.toml": "unchanged"})
+        home = self.base / "user" / ".codex"
+        self.kit.install(home / "skills", "roblox")
+        self.assertEqual((home / "agents/rf_level.toml").read_bytes(), (roles / "rf_level.toml").read_bytes())
+
+    def test_role_conflict_preflight_backup_and_preservation(self):
+        self.add_team()
+        roles = self.base / "agents"
+        roles.mkdir()
+        role = roles / "rf_level.toml"
+        role.write_text("custom role")
+        unrelated = roles / "other.toml"
+        unrelated.write_text("unrelated")
+        with self.assertRaisesRegex(CLI.KitError, "nothing installed"):
+            self.kit.install(self.dest, "full", agents_dir=roles)
+        self.assertFalse(self.dest.exists())
+        report = self.kit.install(self.dest, "full", backup_and_replace=True, agents_dir=roles)
+        self.assertEqual((Path(report["agents_backup"]) / role.name).read_text(), "custom role")
+        self.assertEqual(role.read_text(), 'name = "rf_level"\n')
+        self.assertEqual(unrelated.read_text(), "unrelated")
+
+    def test_role_failure_rolls_back_skills_and_roles_together(self):
+        self.add_team()
+        roles = self.base / "roles"
+        roles.mkdir()
+        role = roles / "rf_level.toml"
+        role.write_text("local role")
+        real_move = CLI.shutil.move
+
+        def fail_on_staged_role(source, destination):
+            if Path(destination) == role and Path(source).parent.name.startswith(".gamekit-stage-"):
+                raise OSError("Simulated agent install failure")
+            return real_move(source, destination)
+
+        with patch.object(CLI.shutil, "move", side_effect=fail_on_staged_role):
+            with self.assertRaisesRegex(CLI.KitError, "originals restored"):
+                self.kit.install(self.dest, "full", backup_and_replace=True, agents_dir=roles)
+        self.assertEqual(role.read_text(), "local role")
+        self.assertFalse((self.dest / "game-creator").exists())
+
     def test_conflict_preflight_prevents_partial_install(self):
         target = self.dest / "game-quality"
         target.mkdir(parents=True)

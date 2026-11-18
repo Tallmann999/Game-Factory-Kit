@@ -227,6 +227,12 @@
       "source_ref": "2026-11-06"
     },
     {
+      "name": "game-roblox-visual-team",
+      "origin": "Original Game Factory Kit Roblox visual production roles",
+      "license": "MIT",
+      "source_ref": "2026-11-18"
+    },
+    {
       "name": "game-ui-design",
       "origin": "Original Game Studio Kit workflow",
       "license": "MIT",
@@ -420,6 +426,7 @@
       "game-qa",
       "game-roblox",
       "game-roblox-ui",
+      "game-roblox-visual-team",
       "game-art-director",
       "game-ui-design",
       "game-audio",
@@ -496,6 +503,7 @@
       "game-qa",
       "game-roblox",
       "game-roblox-ui",
+      "game-roblox-visual-team",
       "game-ui-design",
       "game-web-builder",
       "phaser-animations",
