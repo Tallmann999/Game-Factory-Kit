@@ -118,6 +118,36 @@ test("Roblox visual team reaches the board, build and QA briefs only for a confi
   }
 });
 
+test("Roblox art direction owns the board and stays scoped across platform switches",()=>{
+  const plan=initialPlan(),board=plan.nodes.find(n=>n.id==="board");
+  const build=plan.nodes.find(n=>n.id==="build"),qa=plan.nodes.find(n=>n.id==="qa"),finish=plan.nodes.find(n=>n.id==="finish");
+  const director="game-roblox-art-director",environment="scenario-roblox-environment";
+  assert.ok(!extraSkills(board,plan).includes(director));
+  choosePlatform(plan,"Roblox","Телефон / планшет","3D");
+  assert.equal(board.agent,director);
+  assert.equal(composition(board).filter(s=>s.name===director).length,1);
+  for(const node of [build,qa,finish])assert.ok(extraSkills(node,plan).includes(director));
+  for(const node of [build,qa])assert.ok(extraSkills(node,plan).includes(environment));
+  assert.match(briefing(plan),/Подключить скилл: scenario-roblox-environment/);
+  for(const node of [board,build,qa,finish])node.skills=[director,environment];
+  choosePlatform(plan,"Roblox","Телефон / планшет","2D");
+  assert.ok(extraSkills(build,plan).includes(director));
+  assert.ok(!extraSkills(build,plan).includes(environment));
+  for(const engine of ["HTML / Web","Unity","Godot"]){
+    choosePlatform(plan,engine,"Компьютер","3D");
+    assert.equal(board.agent,"game-art-director");
+    for(const node of [board,build,qa,finish]){
+      assert.ok(!extraSkills(node,plan).includes(director));
+      assert.ok(!extraSkills(node,plan).includes(environment));
+    }
+    assert.doesNotMatch(briefing(plan),/Подключить скилл: (game-roblox-art-director|scenario-roblox-environment)/);
+  }
+  board.agent="Авторский арт-директор";
+  choosePlatform(plan,"Roblox","Компьютер","3D");
+  assert.equal(board.agent,"Авторский арт-директор");
+  assert.ok(extraSkills(board,plan).includes(director));
+});
+
 test("Web 3D skills are selected automatically and do not follow a platform switch",()=>{
   const plan=initialPlan(),build=plan.nodes.find(n=>n.id==="build"),qa=plan.nodes.find(n=>n.id==="qa");
   const skills=["three-webgl-game","web-3d-asset-pipeline","game-playtest"];

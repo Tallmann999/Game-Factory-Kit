@@ -59,6 +59,8 @@ function choosePlatform(plan,engine,device,dimension) {
   }
   for (const node of plan.nodes) {
     if (node.id==="build") node.agent=builders[engines.indexOf(engine)];
+    if(node.id==="board" && ["game-art-director","game-roblox-art-director"].includes(node.agent))
+      node.agent=engine==="Roblox"?"game-roblox-art-director":"game-art-director";
     if (node.id==="platform") {
       node.status="done";
       node.report=platformLabel(plan);
@@ -71,17 +73,17 @@ function choosePlatform(plan,engine,device,dimension) {
 }
 function routeSkills(plan,stage) {
   if (!plan?.platform) return [];
-  if (stage==="board") return plan.engine==="Roblox" ? ["game-roblox-visual-team"] : [];
+  if (stage==="board") return plan.engine==="Roblox" ? ["game-roblox-art-director","game-roblox-visual-team"] : [];
   if (!routedStages.includes(stage)) return [];
   const web=plan.engine==="HTML / Web", three=plan.platform.dimension==="3D";
   const mobile=plan.platform.device!==devices[0], engineSkill=builders[engines.indexOf(plan.engine)];
   const specialist=["Unity","Roblox"].includes(plan.engine) ? [engineSkill] : [];
   switch(stage) {
-    case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-ui","game-roblox-visual-team","scenario-roblox-expert"]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
+    case "build": return ["game-ui-design",...(plan.engine==="Roblox"?["game-roblox-art-director","game-roblox-ui","game-roblox-visual-team","scenario-roblox-expert",...(three?["scenario-roblox-environment"]:[])]:[]),"game-audio","game-asset-pipeline",...(web?["playwright"]:[]),
       ...(web && !three?phaserSkills:[]),...(web && three?["three-webgl-game","web-3d-asset-pipeline"]:[]),...(three?["blender-core"]:[]),...(mobile?["game-mobile"]:[])];
-    case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-ui","game-roblox-visual-team","scenario-roblox-expert","scenario-roblox-performance"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
+    case "qa": return [...specialist,...(plan.engine==="Roblox"?["game-roblox-art-director","game-roblox-ui","game-roblox-visual-team","scenario-roblox-expert","scenario-roblox-performance",...(three?["scenario-roblox-environment"]:[])]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(web && three?["game-playtest"]:[]),...(three?["blender-asset-qa","blender-game-optimization"]:[])];
-    case "finish": return ["game-qa",...specialist,...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
+    case "finish": return ["game-qa",...specialist,...(plan.engine==="Roblox"?["game-roblox-art-director"]:[]),...(web?["playwright"]:[]),...(mobile?["game-mobile"]:[]),
       ...(three?["blender-export-pipelines"]:[])];
   }
 }
@@ -89,7 +91,8 @@ function matchesPlatform(plan,stage,name) {
   if(name==="game-roblox-visual-team")return !!plan?.platform && plan.engine==="Roblox";
   if(name==="game-3d-props")return !plan?.platform || (plan.platform.dimension==="3D" && ["HTML / Web","Unity","Roblox"].includes(plan.engine));
   if(["three-webgl-game","web-3d-asset-pipeline","game-playtest"].includes(name))return !plan?.platform || (plan.engine==="HTML / Web" && plan.platform.dimension==="3D");
-  if(["game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"].includes(name))return plan?.engine==="Roblox";
+  if(name==="scenario-roblox-environment")return plan?.engine==="Roblox" && plan.platform?.dimension==="3D";
+  if(["game-roblox-art-director","game-roblox-ui","scenario-roblox-expert","scenario-roblox-performance"].includes(name))return plan?.engine==="Roblox";
   if (!plan?.platform || !routedStages.includes(stage)) return true;
   if (name.startsWith("phaser-")) return plan.engine==="HTML / Web" && plan.platform.dimension==="2D";
   if (name==="playwright") return plan.engine==="HTML / Web";

@@ -15,6 +15,7 @@
 | Модели, материалы, UV, риг, анимация | blender-core → blender-* | Когда реально нужны 3D-ассеты; заканчивать asset-qa |
 | Unity Editor и C# | unity-mcp-orchestrator | Если установлен соответствующий профиль и доступен Editor/MCP |
 | Roblox, Luau, импорт, сервер | game-roblox | Для реализации или продолжения Roblox-проекта |
+| Единый стиль Roblox: мир, свет и UI | game-roblox-art-director | При выбранном Roblox и визуальной задаче; окружение и свет — scenario-roblox-environment, интерфейс — game-roblox-ui |
 | Mobile, touch, устройства, выпуск | game-mobile | Когда мобильный запуск становится текущей задачей |
 | Перенос между движками/площадками | game-platform-port | После выбора исходной и целевой среды |
 | QA, поведение и проверка гипотезы | game-qa | После каждого замкнутого среза |

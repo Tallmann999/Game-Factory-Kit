@@ -1,0 +1,4 @@
+interface:
+  display_name: "game-roblox-art-director"
+  short_description: "Единый стиль Roblox: палитра, материалы, свет и UI"
+  default_prompt: "Используй $game-roblox-art-director, чтобы согласовать палитру, материалы, свет, композицию и UI текущей Roblox-игры."

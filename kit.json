@@ -327,6 +327,18 @@
       "origin": "Original Game Factory Kit workflow",
       "license": "MIT",
       "source_ref": "0.2.0"
+    },
+    {
+      "name": "game-roblox-art-director",
+      "origin": "Original Game Factory Kit instructions",
+      "license": "MIT",
+      "source_ref": "2026-11-19"
+    },
+    {
+      "name": "scenario-roblox-environment",
+      "origin": "https://github.com/scenario-labs/skills",
+      "license": "MIT",
+      "source_ref": "b96506d77c8595a4fe9c66eddb0bf9b5953a1d45"
     }
   ],
   "profiles": {
@@ -435,7 +447,9 @@
       "game-marketing",
       "game-platform-port",
       "scenario-roblox-expert",
-      "scenario-roblox-performance"
+      "scenario-roblox-performance",
+      "game-roblox-art-director",
+      "scenario-roblox-environment"
     ],
     "mobile": [
       "game-creator",
@@ -519,7 +533,9 @@
       "unity-mcp-orchestrator",
       "web-3d-asset-pipeline",
       "three-webgl-game",
-      "game-playtest"
+      "game-playtest",
+      "game-roblox-art-director",
+      "scenario-roblox-environment"
     ]
   }
 }
